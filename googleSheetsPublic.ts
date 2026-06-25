@@ -1,0 +1,227 @@
+import type { PerformanceRecord } from './data';
+
+interface GvizCell {
+  v?: unknown;
+  f?: string;
+}
+
+interface GvizResponse {
+  status?: string;
+  errors?: Array<{ detailed_message?: string; message?: string }>;
+  table?: {
+    cols?: Array<{ id?: string; label?: string }>;
+    rows?: Array<{ c?: Array<GvizCell | null> }>;
+  };
+}
+
+interface SheetRow {
+  [column: string]: unknown;
+}
+
+export interface SalesEntry {
+  diretor: string;
+  gerente: string;
+  corretor: string;
+  mesVigente: string;
+  vgv: number;
+}
+
+const DEFAULT_SPREADSHEET_ID = '1RgXASkWpEhLL2cL8CSJZ9Aj7tv8aH9x0r8DrLrXmKi0';
+
+const normalizeText = (value: unknown) =>
+  String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+const normalizePerson = (value: unknown) => String(value ?? '').trim().toUpperCase();
+
+const parseNumber = (value: unknown) => {
+  if (typeof value === 'number') return value;
+  const cleaned = String(value ?? '').replace(/\s|R\$|m2|%/gi, '');
+  const normalized =
+    cleaned.includes(',') && cleaned.includes('.')
+      ? cleaned.replace(/\./g, '').replace(',', '.')
+      : cleaned.replace(',', '.');
+  const parsed = Number(normalized.replace(/[^\d.-]/g, ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const parseDate = (value: unknown) => {
+  const raw = String(value ?? '').trim();
+  const gvizDate = raw.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})\)$/);
+  if (gvizDate) {
+    return { year: Number(gvizDate[1]), month: Number(gvizDate[2]) + 1, day: Number(gvizDate[3]) };
+  }
+
+  const date = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2}|\d{4})$/);
+  if (!date) return null;
+  const shortYear = Number(date[3]);
+  return {
+    year: shortYear < 100 ? 2000 + shortYear : shortYear,
+    month: Number(date[2]),
+    day: Number(date[1]),
+  };
+};
+
+const monthKey = (value: unknown) => {
+  const date = parseDate(value);
+  return date ? `${date.year}-${String(date.month).padStart(2, '0')}` : '';
+};
+
+const weekNumber = (value: unknown, fallbackDate?: unknown) => {
+  const explicitWeek = String(value ?? '').match(/(\d+)/);
+  if (explicitWeek) return Number(explicitWeek[1]);
+  const date = parseDate(fallbackDate);
+  return date ? Math.min(Math.ceil(date.day / 7), 5) : 1;
+};
+
+const getValue = (row: SheetRow, aliases: string[]) => {
+  const normalizedAliases = aliases.map(normalizeText);
+  return Object.entries(row).find(([column]) =>
+    normalizedAliases.includes(normalizeText(column)),
+  )?.[1];
+};
+
+const parsePayload = (payload: string): GvizResponse => {
+  const start = payload.indexOf('{');
+  const end = payload.lastIndexOf('}');
+  if (start < 0 || end < start) throw new Error('Resposta inválida do Google Sheets.');
+  return JSON.parse(payload.slice(start, end + 1)) as GvizResponse;
+};
+
+async function loadSheet(sheetName: string, signal?: AbortSignal): Promise<SheetRow[]> {
+  const spreadsheetId =
+    import.meta.env.VITE_GOOGLE_SHEETS_ID?.trim() || DEFAULT_SPREADSHEET_ID;
+  const endpoint = new URL(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq`);
+  endpoint.searchParams.set('tqx', 'out:json');
+  endpoint.searchParams.set('sheet', sheetName);
+
+  const response = await fetch(endpoint, { signal });
+  if (!response.ok) throw new Error(`Não foi possível acessar a aba "${sheetName}".`);
+
+  const parsed = parsePayload(await response.text());
+  if (parsed.status === 'error') {
+    throw new Error(
+      parsed.errors?.[0]?.detailed_message ||
+        parsed.errors?.[0]?.message ||
+        `Erro ao ler a aba "${sheetName}".`,
+    );
+  }
+
+  const columns =
+    parsed.table?.cols?.map(
+      (column, index) => column.label?.trim() || column.id || `coluna_${index + 1}`,
+    ) ?? [];
+
+  return (parsed.table?.rows ?? []).map((row) =>
+    Object.fromEntries(
+      columns.map((column, index) => {
+        const cell = row.c?.[index];
+        return [column, cell?.v ?? cell?.f ?? ''];
+      }),
+    ),
+  );
+}
+
+const recordKey = (diretor: string, gerente: string, mes: string, semana: number) =>
+  `${diretor}|${gerente}|${mes}|${semana}`;
+
+const monthlyKey = (diretor: string, gerente: string, mes: string) =>
+  `${diretor}|${gerente}|${mes}`;
+
+export async function loadPerformanceData(signal?: AbortSignal) {
+  const [goals, visits, sales] = await Promise.all([
+    loadSheet('Meta Mensal', signal),
+    loadSheet('Visitas', signal),
+    loadSheet('Vendas', signal),
+  ]);
+
+  const records = new Map<string, PerformanceRecord>();
+  const monthlyGoals = new Map<string, number>();
+  const salesEntries: SalesEntry[] = [];
+
+  const ensureRecord = (diretor: string, gerente: string, mes: string, semana: number) => {
+    const key = recordKey(diretor, gerente, mes, semana);
+    const existing = records.get(key);
+    if (existing) return existing;
+
+    const record: PerformanceRecord = {
+      diretor,
+      gerente,
+      mesVigente: mes,
+      semana,
+      metaMensal: 0,
+      vendasReais: 0,
+      visitas: 0,
+      agendamentos: 0,
+    };
+    records.set(key, record);
+    return record;
+  };
+
+  goals.forEach((row) => {
+    const diretor = normalizePerson(getValue(row, ['Diretor', 'Diretoria']));
+    const gerente = normalizePerson(getValue(row, ['Gerente']));
+    const mes = monthKey(getValue(row, ['mês vigente', 'mes vigente']));
+    if (diretor && gerente && mes) {
+      monthlyGoals.set(
+        monthlyKey(diretor, gerente, mes),
+        parseNumber(getValue(row, ['Meta Mensal', 'Meta'])),
+      );
+    }
+  });
+
+  visits.forEach((row) => {
+    const diretor = normalizePerson(getValue(row, ['Diretor', 'Diretoria']));
+    const gerente = normalizePerson(getValue(row, ['Gerente']));
+    const date = getValue(row, ['dia', 'data']);
+    const mes = monthKey(date);
+    if (!diretor || !gerente || !mes) return;
+
+    const record = ensureRecord(
+      diretor,
+      gerente,
+      mes,
+      weekNumber(getValue(row, ['semana']), date),
+    );
+    record.visitas += parseNumber(getValue(row, ['PRESENÇA', 'presenca', 'visitas']));
+    record.agendamentos += parseNumber(getValue(row, ['AGENDADAS', 'agendamentos']));
+  });
+
+  sales.forEach((row) => {
+    const diretor = normalizePerson(getValue(row, ['Diretor', 'Diretoria']));
+    const gerente = normalizePerson(getValue(row, ['Gerente']));
+    const corretor = normalizePerson(getValue(row, ['Corretor']));
+    const date = getValue(row, ['DATA', 'dia']);
+    const mes = monthKey(date);
+    const vgv = parseNumber(getValue(row, ['VGV', 'Vendas']));
+    if (!diretor || !gerente || !mes) return;
+
+    ensureRecord(diretor, gerente, mes, weekNumber(undefined, date)).vendasReais += vgv;
+    salesEntries.push({ diretor, gerente, corretor, mesVigente: mes, vgv });
+  });
+
+  monthlyGoals.forEach((goal, key) => {
+    const [diretor, gerente, mes] = key.split('|');
+    const target =
+      [...records.values()]
+        .filter(
+          (record) =>
+            record.diretor === diretor &&
+            record.gerente === gerente &&
+            record.mesVigente === mes,
+        )
+        .sort((a, b) => a.semana - b.semana)[0] ??
+      ensureRecord(diretor, gerente, mes, 1);
+    target.metaMensal = goal;
+  });
+
+  return {
+    records: [...records.values()].sort(
+      (a, b) =>
+        b.mesVigente.localeCompare(a.mesVigente) ||
+        a.semana - b.semana ||
+        a.diretor.localeCompare(b.diretor) ||
+        a.gerente.localeCompare(b.gerente),
+    ),
+    salesEntries,
+  };
+}

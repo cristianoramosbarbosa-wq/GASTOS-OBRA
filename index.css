@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Montserrat", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  /* Lopes Visual Identity Colors */
+  --color-lopes-orange: #f15a24;
+  --color-lopes-orange-dark: #cc4c1e;
+  --color-lopes-black: #1a1a1a;
+  --color-lopes-gray: #333333;
+  
+  /* Override standard colors for ease of use in existing code */
+  --color-orange-500: #f15a24;
+  --color-orange-600: #d94e1c;
+  --color-zinc-950: #0f0f0f;
+  --color-zinc-900: #1a1a1a;
+  --color-zinc-800: #2a2a2a;
+  /* Brand Status Colors */
+  --color-brand-success: #10b981;
+  --color-brand-warning: #f59e0b;
+  --color-brand-danger: #ef4444;
+}
+
+@layer base {
+  body {
+    @apply bg-zinc-50 text-zinc-900 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-zinc-200 rounded-full hover:bg-lopes-orange/30 transition-colors;
+  }
+
+  .geo-card {
+    @apply bg-white border border-zinc-200 transition-all shadow-sm;
+  }
+  
+  .geo-label {
+    @apply text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-400;
+  }
+  
+  .geo-button-primary {
+    @apply px-4 py-2 bg-lopes-orange hover:bg-lopes-orange-dark text-white font-bold text-xs uppercase tracking-widest transition-all rounded-sm shadow-md;
+  }
+
+  .geo-input {
+    @apply bg-white border border-zinc-200 rounded-sm px-4 py-2 text-xs focus:ring-1 focus:ring-lopes-orange focus:border-lopes-orange outline-none transition-all text-zinc-900;
+  }
+
+  .font-mono-data {
+    @apply font-mono text-[11px] tracking-tight;
+  }
+}
+
