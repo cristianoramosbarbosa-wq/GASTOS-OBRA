@@ -112,7 +112,7 @@ function RankingSection({
   const remaining = items.slice(3, 10);
 
   return (
-    <section className="rounded-[40px] border border-gray-100 bg-white p-6 shadow-sm lg:p-8">
+    <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6 lg:rounded-[40px] lg:p-8">
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h4 className="flex items-center gap-2 text-lg font-black uppercase tracking-tight text-gray-900">
@@ -125,7 +125,7 @@ function RankingSection({
         </span>
       </div>
 
-      <div className="mb-8 grid grid-cols-1 items-end gap-3 md:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 items-end gap-5 md:grid-cols-3 md:gap-3">
         {topThree.map((item, index) => {
           const style = PODIUM_STYLES[index];
           return (
@@ -452,17 +452,18 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A] font-sans selection:bg-indigo-100 pb-20">
+    <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A] font-sans selection:bg-indigo-100 pb-28 md:pb-20">
       {/* Top Header */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="h-16 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="bg-indigo-600 p-2 rounded-xl text-white">
+          <div className="min-h-16 py-3 flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+              <div className="shrink-0 bg-indigo-600 p-2 rounded-xl text-white">
                 <TrendingUp size={22} />
               </div>
-              <h1 className="text-lg font-black tracking-tighter text-gray-900 border-l border-gray-200 pl-4 uppercase">
-                BI Corporate <span className="text-indigo-600">Analytics</span>
+              <h1 className="truncate text-sm font-black tracking-tighter text-gray-900 border-l border-gray-200 pl-3 uppercase sm:text-lg sm:pl-4">
+                <span className="sm:hidden">BI <span className="text-indigo-600">Lopes Rio</span></span>
+                <span className="hidden sm:inline">BI Corporate <span className="text-indigo-600">Analytics</span></span>
               </h1>
             </div>
             
@@ -487,7 +488,7 @@ export default function App() {
                 <span className="text-[10px] font-bold text-gray-400 uppercase">Atingimento</span>
                 <span className="text-xs font-black text-emerald-600">{stats.performance.toFixed(1)}%</span>
               </div>
-              <button className="p-2 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors">
+              <button className="hidden sm:block p-2 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors">
                 <Download size={18} />
               </button>
               {!import.meta.env.DEV && (
@@ -505,7 +506,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
         {isLoading && (
           <div className="mb-6 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm font-bold text-indigo-700">
             <RefreshCw size={18} className="animate-spin" />
@@ -536,7 +537,7 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-8 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end"
+          className="bg-white p-4 sm:p-5 rounded-3xl shadow-sm border border-gray-100 mb-6 sm:mb-8 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end"
         >
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 ml-1">
@@ -592,14 +593,14 @@ export default function App() {
               className="space-y-8"
             >
               {/* Executive Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {[
                   { label: 'Receita Total', value: formatCurrency(stats.totalVendas), growth: '+12%', color: 'indigo', icon: DollarSign },
                   { label: 'Presenças na Sede', value: stats.totalVisitas.toLocaleString(), growth: 'Corretores', color: 'blue', icon: UserCheck },
                   { label: 'Agendamentos com Clientes', value: stats.totalAgendamentos.toLocaleString(), growth: 'Gerentes', color: 'emerald', icon: MousePointerClick },
                   { label: 'Performance', value: `${stats.performance.toFixed(1)}%`, growth: 'On Track', color: 'orange', icon: Target },
                 ].map((card) => (
-                  <div key={card.label} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden">
+                  <div key={card.label} className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden">
                     <div className={`absolute top-0 right-0 w-2 h-full ${CARD_STYLES[card.color as keyof typeof CARD_STYLES].accent}`}></div>
                     <div className="flex justify-between items-start mb-4">
                       <div className={`p-2.5 rounded-xl ${CARD_STYLES[card.color as keyof typeof CARD_STYLES].icon}`}>
@@ -614,12 +615,13 @@ export default function App() {
               </div>
 
               {/* Main Visualizations for General Tab */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                 <div className="lg:col-span-2 bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-8">
+                 <div className="lg:col-span-2 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
                     <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
                       <BarChart3 className="text-indigo-600" size={24} /> Tendência de Vendas vs Meta
                     </h3>
-                    <div className="h-[400px]">
+                    <div className="overflow-x-auto pb-2">
+                      <div className="h-[300px] min-w-[520px] sm:h-[400px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={comparisonData.slice(0, 5)} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
@@ -634,10 +636,11 @@ export default function App() {
                           <Bar dataKey="venda" name="Venda" fill="#6366F1" radius={[8, 8, 0, 0]} barSize={32} />
                         </BarChart>
                       </ResponsiveContainer>
+                      </div>
                     </div>
                  </div>
 
-                 <div className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100 flex flex-col items-center justify-center space-y-8">
+                 <div className="bg-white p-5 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 flex flex-col items-center justify-center space-y-6 sm:space-y-8">
                     <h3 className="font-black text-gray-900 uppercase tracking-tighter self-start flex items-center gap-3">
                       <PieChartIcon className="text-indigo-600" size={24} /> Market Share
                     </h3>
@@ -681,9 +684,9 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden"
+              className="bg-white rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden"
             >
-              <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/30">
+              <div className="p-5 sm:p-8 border-b border-gray-100 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-gray-50/30">
                 <div>
                   <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Planejamento de Metas Mensais</h3>
                   <p className="text-xs text-gray-400 font-bold uppercase mt-1">Comparativo de orçamento por gerência</p>
@@ -696,7 +699,7 @@ export default function App() {
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="min-w-[760px] w-full text-left">
                   <thead>
                     <tr className="border-b border-gray-100 text-[10px] uppercase font-black text-gray-400 bg-white">
                       <th className="px-8 py-5">Diretoria / Gerente</th>
@@ -744,8 +747,8 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-8"
             >
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                <div className="bg-indigo-600 p-8 rounded-[40px] text-white space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 sm:gap-8">
+                <div className="bg-indigo-600 p-5 sm:p-8 rounded-3xl lg:rounded-[40px] text-white space-y-6">
                    <div>
                      <h3 className="text-2xl font-black uppercase tracking-tighter">Presença e Agenda</h3>
                      <p className="text-xs font-bold opacity-70 uppercase">Atividade semanal da equipe</p>
@@ -784,11 +787,12 @@ export default function App() {
                    </div>
                 </div>
 
-                <div className="lg:col-span-3 bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
+                <div className="lg:col-span-3 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
                   <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
                     <ArrowUpRight className="text-indigo-600" size={24} /> Presenças e Agendamentos por Semana
                   </h3>
-                  <div className="h-[350px]">
+                  <div className="overflow-x-auto pb-2">
+                    <div className="h-[300px] min-w-[520px] sm:h-[350px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={weeklyTrendData}>
                         <defs>
@@ -804,6 +808,7 @@ export default function App() {
                         <Area type="monotone" dataKey="visitas" name="Corretores na sede" stroke="#10b981" strokeWidth={3} fillOpacity={0} />
                       </AreaChart>
                     </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -818,13 +823,13 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-8"
             >
-              <div className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100 flex flex-col md:flex-row items-center gap-8">
+              <div className="bg-white p-5 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 flex flex-col md:flex-row items-center gap-6 sm:gap-8">
                  <div className="flex-1 space-y-4">
                     <h3 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">Performance Comercial</h3>
                     <p className="text-sm text-gray-500 font-medium">
                       Valores acumulados no período, diretoria, gerente e mês selecionados nos filtros.
                     </p>
-                    <div className="flex gap-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                        <div className="p-4 bg-gray-50 rounded-3xl">
                           <span className="text-[10px] font-bold text-gray-400 block uppercase">Vendas Reais</span>
                           <span className="text-lg font-black text-gray-900">{formatCurrency(stats.totalVendas)}</span>
@@ -886,6 +891,25 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
+
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] backdrop-blur-md lg:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
+          {(['geral', 'metas', 'visitas', 'vendas'] as TabType[]).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={`rounded-xl px-1 py-2.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
+                activeTab === tab
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {/* Floating Bottom Info (Internal Mobile Friendly Footer) */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-200 py-3 px-6 z-40 hidden md:flex items-center justify-between">
