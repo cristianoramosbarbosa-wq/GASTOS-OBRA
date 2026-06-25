@@ -46,6 +46,8 @@ O dashboard exige senha e mantém a sessão em cookie seguro e inacessível ao
 JavaScript. A leitura da planilha em produção acontece no servidor, depois da
 autenticação.
 
+As sessões autenticadas permanecem válidas por até oito horas.
+
 A planilha original continua acessível a qualquer pessoa que já possua o link
 de compartilhamento dela. A autenticação protege o dashboard, mas não altera as
 permissões configuradas diretamente no Google Sheets.
