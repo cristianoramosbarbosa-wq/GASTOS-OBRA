@@ -1,4 +1,4 @@
-import { isValidSession } from '../server/auth';
+import { isValidSession } from '../server/auth.js';
 
 export default function handler(request: any, response: any) {
   if (request.method !== 'GET') {

@@ -1,5 +1,5 @@
-import { loadPerformanceData } from '../googleSheetsPublic';
-import { isValidSession } from '../server/auth';
+import { loadPerformanceData } from '../googleSheetsPublic.js';
+import { isValidSession } from '../server/auth.js';
 
 export default async function handler(request: any, response: any) {
   if (request.method !== 'GET') {

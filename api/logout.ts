@@ -1,4 +1,4 @@
-import { clearSessionCookie } from '../server/auth';
+import { clearSessionCookie } from '../server/auth.js';
 
 export default function handler(request: any, response: any) {
   if (request.method !== 'POST') {

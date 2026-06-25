@@ -2,7 +2,7 @@ import {
   createSessionToken,
   passwordMatches,
   sessionCookie,
-} from '../server/auth';
+} from '../server/auth.js';
 
 export default function handler(request: any, response: any) {
   if (request.method !== 'POST') {
