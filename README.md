@@ -24,8 +24,12 @@ VITE_GOOGLE_SHEETS_ID=1RgXASkWpEhLL2cL8CSJZ9Aj7tv8aH9x0r8DrLrXmKi0
 2. Acesse https://vercel.com/new e importe o repositório.
 3. Confirme o framework `Vite`.
 4. Em **Environment Variables**, adicione:
-   - Nome: `VITE_GOOGLE_SHEETS_ID`
+   - Nome: `GOOGLE_SHEETS_ID`
    - Valor: `1RgXASkWpEhLL2cL8CSJZ9Aj7tv8aH9x0r8DrLrXmKi0`
+   - Nome: `APP_PASSWORD`
+   - Valor: uma senha forte compartilhada com as pessoas autorizadas
+   - Nome: `AUTH_SECRET`
+   - Valor: um texto aleatório longo, usado para assinar as sessões
 5. Clique em **Deploy**.
 
 A configuração de build já está definida em `vercel.json`.
@@ -38,6 +42,10 @@ branch principal do GitHub.
 
 ## Privacidade
 
-A planilha está acessível em modo de leitura por link. Portanto, o dashboard
-publicado também expõe esses indicadores a qualquer pessoa que tenha seu
-endereço. Para acesso restrito, será necessário adicionar autenticação.
+O dashboard exige senha e mantém a sessão em cookie seguro e inacessível ao
+JavaScript. A leitura da planilha em produção acontece no servidor, depois da
+autenticação.
+
+A planilha original continua acessível a qualquer pessoa que já possua o link
+de compartilhamento dela. A autenticação protege o dashboard, mas não altera as
+permissões configuradas diretamente no Google Sheets.

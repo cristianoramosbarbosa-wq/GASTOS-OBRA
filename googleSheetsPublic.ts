@@ -88,8 +88,16 @@ const parsePayload = (payload: string): GvizResponse => {
 };
 
 async function loadSheet(sheetName: string, signal?: AbortSignal): Promise<SheetRow[]> {
+  const viteSpreadsheetId =
+    typeof import.meta.env !== 'undefined'
+      ? import.meta.env.VITE_GOOGLE_SHEETS_ID?.trim()
+      : undefined;
   const spreadsheetId =
-    import.meta.env.VITE_GOOGLE_SHEETS_ID?.trim() || DEFAULT_SPREADSHEET_ID;
+    viteSpreadsheetId ||
+    (typeof process !== 'undefined'
+      ? process.env.GOOGLE_SHEETS_ID?.trim()
+      : undefined) ||
+    DEFAULT_SPREADSHEET_ID;
   const endpoint = new URL(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq`);
   endpoint.searchParams.set('tqx', 'out:json');
   endpoint.searchParams.set('sheet', sheetName);

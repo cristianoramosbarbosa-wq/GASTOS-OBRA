@@ -21,7 +21,9 @@ import {
   AlertCircle,
   RefreshCw,
   Trophy,
-  Medal
+  Medal,
+  LockKeyhole,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -41,7 +43,7 @@ import {
 import type { PerformanceRecord } from './data';
 import { formatCurrency, formatMonthYear } from './data';
 import type { SalesEntry } from './googleSheetsPublic';
-import { loadPerformanceData } from './googleSheetsPublic';
+import { loadDashboardData } from './dataClient';
 
 type TabType = 'geral' | 'metas' | 'visitas' | 'vendas';
 
@@ -171,7 +173,102 @@ function RankingSection({
   );
 }
 
+function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Não foi possível entrar.');
+      }
+
+      setPassword('');
+      onAuthenticated();
+    } catch (loginError) {
+      setError(
+        loginError instanceof Error ? loginError.message : 'Não foi possível entrar.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#F8F9FA] px-4">
+      <div className="w-full max-w-md overflow-hidden rounded-[36px] border border-gray-100 bg-white shadow-xl shadow-indigo-100/50">
+        <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 px-8 py-10 text-white">
+          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+            <LockKeyhole size={26} />
+          </div>
+          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-200">
+            Área restrita
+          </p>
+          <h1 className="mt-2 text-3xl font-black uppercase tracking-tighter">
+            BI Lopes Rio
+          </h1>
+          <p className="mt-3 text-sm font-medium text-indigo-100">
+            Entre com a senha autorizada para acessar os indicadores comerciais.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5 p-8">
+          <div>
+            <label
+              htmlFor="access-password"
+              className="mb-2 block text-[10px] font-black uppercase tracking-widest text-gray-500"
+            >
+              Senha de acesso
+            </label>
+            <input
+              id="access-password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Digite a senha"
+              required
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            />
+          </div>
+
+          {error && (
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-xs font-bold text-red-600">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black uppercase tracking-wider text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSubmitting ? <RefreshCw size={17} className="animate-spin" /> : <LockKeyhole size={17} />}
+            {isSubmitting ? 'Validando...' : 'Acessar dashboard'}
+          </button>
+        </form>
+      </div>
+    </main>
+  );
+}
+
 export default function App() {
+  const [authStatus, setAuthStatus] = useState<
+    'checking' | 'authenticated' | 'unauthenticated'
+  >(import.meta.env.DEV ? 'authenticated' : 'checking');
   const [data, setData] = useState<PerformanceRecord[]>([]);
   const [salesEntries, setSalesEntries] = useState<SalesEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -183,12 +280,25 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
+    if (import.meta.env.DEV) return;
+
+    fetch('/api/session', { credentials: 'include' })
+      .then((response) => response.json())
+      .then((payload: { authenticated?: boolean }) =>
+        setAuthStatus(payload.authenticated ? 'authenticated' : 'unauthenticated'),
+      )
+      .catch(() => setAuthStatus('unauthenticated'));
+  }, []);
+
+  useEffect(() => {
+    if (authStatus !== 'authenticated') return;
+
     const controller = new AbortController();
 
     setIsLoading(true);
     setLoadError('');
 
-    loadPerformanceData(controller.signal)
+    loadDashboardData(controller.signal)
       .then(({ records, salesEntries: loadedSales }) => {
         setData(records);
         setSalesEntries(loadedSales);
@@ -200,7 +310,7 @@ export default function App() {
       .finally(() => setIsLoading(false));
 
     return () => controller.abort();
-  }, [reloadKey]);
+  }, [reloadKey, authStatus]);
 
   const directors = useMemo(
     () => [...new Set(data.map((item) => item.diretor))].sort(),
@@ -319,6 +429,28 @@ export default function App() {
 
   const COLORS = ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
+  if (authStatus === 'checking') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F8F9FA] text-indigo-600">
+        <RefreshCw size={28} className="animate-spin" />
+      </div>
+    );
+  }
+
+  if (authStatus === 'unauthenticated') {
+    return <LoginScreen onAuthenticated={() => setAuthStatus('authenticated')} />;
+  }
+
+  const handleLogout = async () => {
+    await fetch('/api/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    setData([]);
+    setSalesEntries([]);
+    setAuthStatus('unauthenticated');
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A] font-sans selection:bg-indigo-100 pb-20">
       {/* Top Header */}
@@ -358,6 +490,16 @@ export default function App() {
               <button className="p-2 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors">
                 <Download size={18} />
               </button>
+              {!import.meta.env.DEV && (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  title="Sair"
+                  className="p-2 bg-gray-100 text-gray-500 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors"
+                >
+                  <LogOut size={18} />
+                </button>
+              )}
             </div>
           </div>
         </div>
