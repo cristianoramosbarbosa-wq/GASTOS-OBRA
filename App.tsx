@@ -37,8 +37,6 @@ import {
   Cell,
   PieChart,
   Pie,
-  AreaChart,
-  Area
 } from 'recharts';
 import type { PerformanceRecord } from './data';
 import { formatCurrency, formatMonthYear } from './data';
@@ -361,22 +359,40 @@ export default function App() {
       .sort((a, b) => b.meta - a.meta);
   }, [filteredData]);
 
-  // Chart Data: Weekly Trend
+  // Chart Data: Visits by month and week
   const weeklyTrendData = useMemo(() => {
-    const weeks: Record<number, { meta: number; venda: number; visitas: number; agendamentos: number }> = {};
+    const weeks = new Map<
+      string,
+      {
+        mesVigente: string;
+        semana: number;
+        label: string;
+        visitas: number;
+        agendamentos: number;
+      }
+    >();
+
     filteredData.forEach(item => {
-      if (!weeks[item.semana]) weeks[item.semana] = { meta: 0, venda: 0, visitas: 0, agendamentos: 0 };
-      weeks[item.semana].meta += item.metaMensal;
-      weeks[item.semana].venda += item.vendasReais;
-      weeks[item.semana].visitas += item.visitas;
-      weeks[item.semana].agendamentos += item.agendamentos;
+      const key = `${item.mesVigente}|${item.semana}`;
+      const existing =
+        weeks.get(key) ?? {
+          mesVigente: item.mesVigente,
+          semana: item.semana,
+          label: `${formatMonthYear(item.mesVigente).slice(0, 3)} S${item.semana}`,
+          visitas: 0,
+          agendamentos: 0,
+        };
+
+      existing.visitas += item.visitas;
+      existing.agendamentos += item.agendamentos;
+      weeks.set(key, existing);
     });
-    return Object.entries(weeks)
-      .sort(([weekA], [weekB]) => Number(weekA) - Number(weekB))
-      .map(([semana, vals]) => ({
-        semana: `Semana ${semana}`,
-        ...vals
-      }));
+
+    return [...weeks.values()].sort(
+      (a, b) =>
+        a.mesVigente.localeCompare(b.mesVigente) ||
+        a.semana - b.semana,
+    );
   }, [filteredData]);
 
   const filteredSalesEntries = useMemo(() => {
@@ -789,27 +805,25 @@ export default function App() {
 
                 <div className="lg:col-span-3 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
                   <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
-                    <ArrowUpRight className="text-indigo-600" size={24} /> Presenças e Agendamentos por Semana
+                    <ArrowUpRight className="text-indigo-600" size={24} /> Presenças e Agendamentos por Mês/Semana
                   </h3>
                   <div className="overflow-x-auto pb-2">
-                    <div className="h-[300px] min-w-[520px] sm:h-[350px]">
+                    <div className="h-[300px] min-w-[640px] sm:h-[350px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={weeklyTrendData}>
-                        <defs>
-                          <linearGradient id="visColor" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#6366F1" stopOpacity={0.1}/>
-                            <stop offset="95%" stopColor="#6366F1" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
+                      <BarChart data={weeklyTrendData} barGap={6} barCategoryGap="28%">
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                        <XAxis dataKey="semana" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} />
+                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} />
                         <Tooltip />
-                        <Area type="monotone" dataKey="agendamentos" name="Agendamentos com clientes" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#visColor)" />
-                        <Area type="monotone" dataKey="visitas" name="Corretores na sede" stroke="#10b981" strokeWidth={3} fillOpacity={0} />
-                      </AreaChart>
+                        <Bar dataKey="visitas" name="Corretores na sede" fill="#10b981" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="agendamentos" name="Agendamentos com clientes" fill="#6366f1" radius={[8, 8, 0, 0]} />
+                      </BarChart>
                     </ResponsiveContainer>
                     </div>
                   </div>
+                  <p className="mt-3 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    Cada ponto representa uma semana dentro do mês selecionado, sem misturar semanas de meses diferentes.
+                  </p>
                 </div>
               </div>
             </motion.div>
