@@ -167,13 +167,13 @@ export async function loadPerformanceData(signal?: AbortSignal) {
   };
 
   goals.forEach((row) => {
-    const diretor = normalizePerson(getValue(row, ['Diretor', 'Diretoria']));
-    const gerente = normalizePerson(getValue(row, ['Gerente']));
-    const mes = monthKey(getValue(row, ['mês vigente', 'mes vigente']));
+    const diretor = normalizePerson(getValue(row, ['Diretor', 'Diretoria', 'A']));
+    const gerente = normalizePerson(getValue(row, ['Gerente', 'B']));
+    const mes = monthKey(getValue(row, ['mês vigente', 'mes vigente', 'D']));
     if (diretor && gerente && mes) {
       monthlyGoals.set(
         monthlyKey(diretor, gerente, mes),
-        parseNumber(getValue(row, ['Meta Mensal', 'Meta'])),
+        parseNumber(getValue(row, ['Meta Mensal', 'Meta', 'C'])),
       );
     }
   });
