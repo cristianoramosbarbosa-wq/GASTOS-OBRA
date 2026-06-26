@@ -544,9 +544,11 @@ export default function App() {
     const aggregate = (
       nameSelector: (entry: SalesEntry) => string,
       detailSelector?: (entry: SalesEntry) => string,
+      includeEntry: (entry: SalesEntry) => boolean = () => true,
     ) => {
       const ranking = new Map<string, RankingItem>();
       filteredSalesEntries.forEach((entry) => {
+        if (!includeEntry(entry)) return;
         const name = nameSelector(entry);
         if (!name) return;
         const current = ranking.get(name) ?? {
@@ -564,6 +566,7 @@ export default function App() {
       corretores: aggregate(
         (entry) => entry.corretor,
         (entry) => `${entry.gerente} · ${entry.diretor}`,
+        (entry) => entry.corretor !== entry.gerente,
       ),
       gerentes: aggregate(
         (entry) => entry.gerente,
