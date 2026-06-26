@@ -4,5 +4,6 @@ dist/
 .env.local
 *.log
 _tmp_*
+tmp/
 package-lock.json
 googleSheets.ts
