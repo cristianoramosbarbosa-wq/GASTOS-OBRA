@@ -785,6 +785,10 @@ export default function App() {
                     <span className="text-[10px] font-bold text-gray-400 block uppercase">Meta Consolidada</span>
                     <span className="text-sm font-black">{formatCurrency(stats.totalMeta)}</span>
                   </div>
+                  <div className="bg-indigo-600 px-4 py-2 rounded-2xl border border-indigo-600 text-white">
+                    <span className="text-[10px] font-bold text-indigo-100 block uppercase">Atingimento</span>
+                    <span className="text-sm font-black">{stats.performance.toFixed(1)}%</span>
+                  </div>
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -793,11 +797,11 @@ export default function App() {
                     <tr className="border-b border-gray-100 text-[10px] uppercase font-black text-gray-400 bg-white">
                       <th className="px-8 py-5">Ranking</th>
                       <th className="px-8 py-5">{metaView === 'gerente' ? 'Gerente / Diretoria' : 'Diretoria'}</th>
+                      <th className="px-8 py-5 text-right">% Atingimento</th>
                       <th className="px-8 py-5">Período</th>
                       <th className="px-8 py-5 text-right">Meta</th>
                       <th className="px-8 py-5 text-right font-black text-indigo-600">Vendas Reais</th>
                       <th className="px-8 py-5 text-right">Saldo</th>
-                      <th className="px-8 py-5 text-right">% Atingimento</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -821,6 +825,17 @@ export default function App() {
                             </div>
                           </div>
                         </td>
+                        <td className="px-8 py-5 text-right">
+                          <div className="flex flex-col items-end gap-2">
+                            <span className="text-sm font-black text-indigo-600">{meta.atingimento.toFixed(1)}%</span>
+                            <div className="h-1.5 w-28 overflow-hidden rounded-full bg-gray-100">
+                              <div
+                                className={`h-full rounded-full ${meta.atingimento >= 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                                style={{ width: `${Math.min(meta.atingimento, 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </td>
                         <td className="px-8 py-5">
                           <span className="text-xs font-bold text-gray-500 uppercase">{meta.periodo}</span>
                         </td>
@@ -834,17 +849,6 @@ export default function App() {
                           <span className={`text-xs font-black ${meta.saldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {formatCurrency(meta.saldo)}
                           </span>
-                        </td>
-                        <td className="px-8 py-5 text-right">
-                          <div className="flex flex-col items-end gap-2">
-                            <span className="text-sm font-black text-indigo-600">{meta.atingimento.toFixed(1)}%</span>
-                            <div className="h-1.5 w-28 overflow-hidden rounded-full bg-gray-100">
-                              <div
-                                className={`h-full rounded-full ${meta.atingimento >= 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-                                style={{ width: `${Math.min(meta.atingimento, 100)}%` }}
-                              ></div>
-                            </div>
-                          </div>
                         </td>
                       </tr>
                     ))}
