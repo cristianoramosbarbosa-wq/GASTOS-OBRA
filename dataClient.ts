@@ -15,6 +15,7 @@ export async function loadDashboardData(signal?: AbortSignal) {
   const response = await fetch('/api/data', {
     credentials: 'include',
     signal,
+    cache: 'no-store',
   });
   const payload = (await response.json()) as DashboardPayload & { error?: string };
 

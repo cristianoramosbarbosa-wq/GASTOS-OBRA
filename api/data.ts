@@ -11,8 +11,11 @@ export default async function handler(request: any, response: any) {
       return response.status(401).json({ error: 'Acesso não autorizado.' });
     }
 
+    response.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    response.setHeader('Pragma', 'no-cache');
+    response.setHeader('Expires', '0');
+
     const payload = await loadPerformanceData();
-    response.setHeader('Cache-Control', 'private, max-age=60');
     return response.status(200).json(payload);
   } catch (error) {
     const message =

@@ -101,8 +101,9 @@ async function loadSheet(sheetName: string, signal?: AbortSignal): Promise<Sheet
   const endpoint = new URL(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq`);
   endpoint.searchParams.set('tqx', 'out:json');
   endpoint.searchParams.set('sheet', sheetName);
+  endpoint.searchParams.set('_', String(Date.now()));
 
-  const response = await fetch(endpoint, { signal });
+  const response = await fetch(endpoint, { signal, cache: 'no-store' });
   if (!response.ok) throw new Error(`Não foi possível acessar a aba "${sheetName}".`);
 
   const parsed = parsePayload(await response.text());
