@@ -44,6 +44,14 @@ import type { SalesEntry } from './googleSheetsPublic';
 import { loadDashboardData } from './dataClient';
 
 type TabType = 'geral' | 'metas' | 'visitas' | 'vendas';
+type MetaViewType = 'gerente' | 'diretoria';
+
+const TAB_LABELS: Record<TabType, string> = {
+  geral: 'Geral',
+  metas: 'Metas',
+  visitas: 'Presença',
+  vendas: 'Vendas',
+};
 
 const CARD_STYLES = {
   indigo: {
@@ -276,6 +284,7 @@ export default function App() {
   const [selectedDirector, setSelectedDirector] = useState<string>('Todos');
   const [selectedMonth, setSelectedMonth] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
+  const [metaView, setMetaView] = useState<MetaViewType>('gerente');
 
   useEffect(() => {
     if (import.meta.env.DEV) return;
@@ -395,6 +404,52 @@ export default function App() {
     );
   }, [filteredData]);
 
+  const metasData = useMemo(() => {
+    const aggregation = new Map<
+      string,
+      {
+        name: string;
+        detail: string;
+        meta: number;
+        vendas: number;
+        periodo: string;
+      }
+    >();
+
+    filteredData.forEach((item) => {
+      const isDirectorView = metaView === 'diretoria';
+      const key = isDirectorView ? item.diretor : `${item.gerente}|${item.diretor}`;
+      const current =
+        aggregation.get(key) ?? {
+          name: isDirectorView ? item.diretor : item.gerente,
+          detail: isDirectorView ? 'Diretoria' : item.diretor,
+          meta: 0,
+          vendas: 0,
+          periodo:
+            selectedMonth === 'Todos'
+              ? 'Todos os meses'
+              : formatMonthYear(selectedMonth),
+        };
+
+      current.meta += item.metaMensal;
+      current.vendas += item.vendasReais;
+      aggregation.set(key, current);
+    });
+
+    return [...aggregation.values()]
+      .map((item) => ({
+        ...item,
+        atingimento: percentage(item.vendas, item.meta),
+        saldo: item.vendas - item.meta,
+      }))
+      .sort(
+        (a, b) =>
+          b.atingimento - a.atingimento ||
+          b.vendas - a.vendas ||
+          b.meta - a.meta,
+      );
+  }, [filteredData, metaView, selectedMonth]);
+
   const filteredSalesEntries = useMemo(() => {
     const search = searchTerm.toLowerCase();
     return salesEntries.filter((entry) => {
@@ -494,7 +549,7 @@ export default function App() {
                       : 'text-gray-400 hover:text-gray-600'
                   }`}
                 >
-                  {tab}
+                  {TAB_LABELS[tab]}
                 </button>
               ))}
             </div>
@@ -613,7 +668,7 @@ export default function App() {
                 {[
                   { label: 'Receita Total', value: formatCurrency(stats.totalVendas), growth: '+12%', color: 'indigo', icon: DollarSign },
                   { label: 'Presenças na Sede', value: stats.totalVisitas.toLocaleString(), growth: 'Corretores', color: 'blue', icon: UserCheck },
-                  { label: 'Agendamentos com Clientes', value: stats.totalAgendamentos.toLocaleString(), growth: 'Gerentes', color: 'emerald', icon: MousePointerClick },
+                  { label: 'Agendadas com Clientes', value: stats.totalAgendamentos.toLocaleString(), growth: 'Gerentes', color: 'emerald', icon: MousePointerClick },
                   { label: 'Performance', value: `${stats.performance.toFixed(1)}%`, growth: 'On Track', color: 'orange', icon: Target },
                 ].map((card) => (
                   <div key={card.label} className="bg-white p-5 sm:p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden">
@@ -704,48 +759,92 @@ export default function App() {
             >
               <div className="p-5 sm:p-8 border-b border-gray-100 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-gray-50/30">
                 <div>
-                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Planejamento de Metas Mensais</h3>
-                  <p className="text-xs text-gray-400 font-bold uppercase mt-1">Comparativo de orçamento por gerência</p>
+                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Atingimento de Metas</h3>
+                  <p className="text-xs text-gray-400 font-bold uppercase mt-1">
+                    Ranking do maior para o menor percentual de atingimento
+                  </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex rounded-2xl border border-gray-200 bg-white p-1">
+                    {(['gerente', 'diretoria'] as MetaViewType[]).map((view) => (
+                      <button
+                        key={view}
+                        type="button"
+                        onClick={() => setMetaView(view)}
+                        className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                          metaView === view
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-gray-400 hover:text-gray-700'
+                        }`}
+                      >
+                        Por {view === 'gerente' ? 'Gerente' : 'Diretoria'}
+                      </button>
+                    ))}
+                  </div>
                   <div className="bg-white px-4 py-2 rounded-2xl border border-gray-200">
-                    <span className="text-[10px] font-bold text-gray-400 block uppercase">Orçamento Global</span>
+                    <span className="text-[10px] font-bold text-gray-400 block uppercase">Meta Consolidada</span>
                     <span className="text-sm font-black">{formatCurrency(stats.totalMeta)}</span>
                   </div>
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-[760px] w-full text-left">
+                <table className="min-w-[900px] w-full text-left">
                   <thead>
                     <tr className="border-b border-gray-100 text-[10px] uppercase font-black text-gray-400 bg-white">
-                      <th className="px-8 py-5">Diretoria / Gerente</th>
-                      <th className="px-8 py-5">Mês de Vigência</th>
-                      <th className="px-8 py-5 text-right">Meta Mensal</th>
+                      <th className="px-8 py-5">Ranking</th>
+                      <th className="px-8 py-5">{metaView === 'gerente' ? 'Gerente / Diretoria' : 'Diretoria'}</th>
+                      <th className="px-8 py-5">Período</th>
+                      <th className="px-8 py-5 text-right">Meta</th>
                       <th className="px-8 py-5 text-right font-black text-indigo-600">Vendas Reais</th>
+                      <th className="px-8 py-5 text-right">Saldo</th>
+                      <th className="px-8 py-5 text-right">% Atingimento</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {filteredData.slice(0, 15).map((meta, i) => (
+                    {metasData.map((meta, i) => (
                       <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-8 py-5">
+                          <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-xs font-black ${
+                            i < 3 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400'
+                          }`}>
+                            {i + 1}
+                          </span>
+                        </td>
                         <td className="px-8 py-5">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400">
-                               <UserCheck size={18} />
+                               {metaView === 'gerente' ? <UserCheck size={18} /> : <Target size={18} />}
                             </div>
                             <div>
-                               <p className="text-sm font-black text-gray-900">{meta.gerente}</p>
-                               <p className="text-[10px] font-bold text-indigo-400 uppercase">{meta.diretor}</p>
+                               <p className="text-sm font-black text-gray-900">{meta.name}</p>
+                               <p className="text-[10px] font-bold text-indigo-400 uppercase">{meta.detail}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-8 py-5">
-                          <span className="text-xs font-bold text-gray-500 uppercase">{formatMonthYear(meta.mesVigente)}</span>
+                          <span className="text-xs font-bold text-gray-500 uppercase">{meta.periodo}</span>
                         </td>
                         <td className="px-8 py-5 text-right">
-                          <span className="text-xs font-mono text-gray-400">{formatCurrency(meta.metaMensal)}</span>
+                          <span className="text-xs font-mono text-gray-400">{formatCurrency(meta.meta)}</span>
                         </td>
                         <td className="px-8 py-5 text-right">
-                          <span className="text-sm font-black text-gray-900">{formatCurrency(meta.vendasReais)}</span>
+                          <span className="text-sm font-black text-gray-900">{formatCurrency(meta.vendas)}</span>
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <span className={`text-xs font-black ${meta.saldo >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {formatCurrency(meta.saldo)}
+                          </span>
+                        </td>
+                        <td className="px-8 py-5 text-right">
+                          <div className="flex flex-col items-end gap-2">
+                            <span className="text-sm font-black text-indigo-600">{meta.atingimento.toFixed(1)}%</span>
+                            <div className="h-1.5 w-28 overflow-hidden rounded-full bg-gray-100">
+                              <div
+                                className={`h-full rounded-full ${meta.atingimento >= 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                                style={{ width: `${Math.min(meta.atingimento, 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -766,12 +865,12 @@ export default function App() {
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 sm:gap-8">
                 <div className="bg-indigo-600 p-5 sm:p-8 rounded-3xl lg:rounded-[40px] text-white space-y-6">
                    <div>
-                     <h3 className="text-2xl font-black uppercase tracking-tighter">Presença e Agenda</h3>
+                     <h3 className="text-2xl font-black uppercase tracking-tighter">Presença e Agendadas</h3>
                      <p className="text-xs font-bold opacity-70 uppercase">Atividade semanal da equipe</p>
                    </div>
                    <div className="space-y-4">
                       <div>
-                        <span className="text-[10px] font-bold uppercase block opacity-60">Agendamentos com possíveis clientes</span>
+                        <span className="text-[10px] font-bold uppercase block opacity-60">Agendadas com possíveis clientes</span>
                         <div className="flex items-center justify-between">
                           <span className="text-xl font-black">{stats.totalAgendamentos}</span>
                           <BarChart3 size={20} />
@@ -798,14 +897,14 @@ export default function App() {
                       </div>
                    </div>
                    <div className="pt-4 border-t border-indigo-500">
-                     <p className="text-[10px] font-bold uppercase opacity-60 mb-1">Agendamentos por presença</p>
+                     <p className="text-[10px] font-bold uppercase opacity-60 mb-1">Agendadas por presença</p>
                      <p className="text-3xl font-black">{percentage(stats.totalAgendamentos, stats.totalVisitas).toFixed(1)}%</p>
                    </div>
                 </div>
 
                 <div className="lg:col-span-3 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
                   <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
-                    <ArrowUpRight className="text-indigo-600" size={24} /> Presenças e Agendamentos por Mês/Semana
+                    <ArrowUpRight className="text-indigo-600" size={24} /> Presença e Agendadas por Mês/Semana
                   </h3>
                   <div className="overflow-x-auto pb-2">
                     <div className="h-[300px] min-w-[640px] sm:h-[350px]">
@@ -816,14 +915,11 @@ export default function App() {
                         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} />
                         <Tooltip />
                         <Bar dataKey="visitas" name="Corretores na sede" fill="#10b981" radius={[8, 8, 0, 0]} />
-                        <Bar dataKey="agendamentos" name="Agendamentos com clientes" fill="#6366f1" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="agendamentos" name="Agendadas com clientes" fill="#6366f1" radius={[8, 8, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                     </div>
                   </div>
-                  <p className="mt-3 text-xs font-bold text-gray-400 uppercase tracking-widest">
-                    Cada ponto representa uma semana dentro do mês selecionado, sem misturar semanas de meses diferentes.
-                  </p>
                 </div>
               </div>
             </motion.div>
@@ -919,7 +1015,7 @@ export default function App() {
                   : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'
               }`}
             >
-              {tab}
+              {TAB_LABELS[tab]}
             </button>
           ))}
         </div>
