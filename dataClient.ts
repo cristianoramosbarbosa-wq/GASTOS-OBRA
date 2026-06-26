@@ -1,9 +1,10 @@
 import type { PerformanceRecord } from './data';
-import type { SalesEntry } from './googleSheetsPublic';
+import type { PlantaoEntry, SalesEntry } from './googleSheetsPublic';
 
 export interface DashboardPayload {
   records: PerformanceRecord[];
   salesEntries: SalesEntry[];
+  plantaoEntries: PlantaoEntry[];
 }
 
 export async function loadDashboardData(signal?: AbortSignal) {

@@ -26,6 +26,15 @@ export interface SalesEntry {
   vgv: number;
 }
 
+export interface PlantaoEntry {
+  diretor: string;
+  gerente: string;
+  corretor: string;
+  mesVigente: string;
+  plantoes: number;
+  faltas: number;
+}
+
 const DEFAULT_SPREADSHEET_ID = '1RgXASkWpEhLL2cL8CSJZ9Aj7tv8aH9x0r8DrLrXmKi0';
 
 const normalizeText = (value: unknown) =>
@@ -137,15 +146,18 @@ const monthlyKey = (diretor: string, gerente: string, mes: string) =>
   `${diretor}|${gerente}|${mes}`;
 
 export async function loadPerformanceData(signal?: AbortSignal) {
-  const [goals, visits, sales] = await Promise.all([
+  const [goals, visits, sales, plantoes] = await Promise.all([
     loadSheet('Meta Mensal', signal),
     loadSheet('Visitas', signal),
     loadSheet('Vendas', signal),
+    loadSheet('Plantões', signal),
   ]);
 
   const records = new Map<string, PerformanceRecord>();
   const monthlyGoals = new Map<string, number>();
   const salesEntries: SalesEntry[] = [];
+  const plantaoEntries: PlantaoEntry[] = [];
+  const managerDirector = new Map<string, string>();
 
   const ensureRecord = (diretor: string, gerente: string, mes: string, semana: number) => {
     const key = recordKey(diretor, gerente, mes, semana);
@@ -171,6 +183,7 @@ export async function loadPerformanceData(signal?: AbortSignal) {
     const gerente = normalizePerson(getValue(row, ['Gerente', 'B']));
     const mes = monthKey(getValue(row, ['mês vigente', 'mes vigente', 'D']));
     if (diretor && gerente && mes) {
+      managerDirector.set(gerente, diretor);
       monthlyGoals.set(
         monthlyKey(diretor, gerente, mes),
         parseNumber(getValue(row, ['Meta Mensal', 'Meta', 'C'])),
@@ -204,8 +217,31 @@ export async function loadPerformanceData(signal?: AbortSignal) {
     const vgv = parseNumber(getValue(row, ['VGV', 'Vendas']));
     if (!diretor || !gerente || !mes) return;
 
+    if (!managerDirector.has(gerente)) managerDirector.set(gerente, diretor);
     ensureRecord(diretor, gerente, mes, weekNumber(undefined, date)).vendasReais += vgv;
     salesEntries.push({ diretor, gerente, corretor, mesVigente: mes, vgv });
+  });
+
+  plantoes.forEach((row) => {
+    const gerente = normalizePerson(getValue(row, ['Gerente', 'A']));
+    const corretor = normalizePerson(getValue(row, ['Corretor', 'B']));
+    const date = getValue(row, ['Entrada', 'D']);
+    const mes = monthKey(date);
+    const diretor = managerDirector.get(gerente) || 'SEM DIRETOR';
+    const totalPlantoes = parseNumber(getValue(row, ['Plantões', 'Plantoes', 'G']));
+    const faltas = parseNumber(getValue(row, ['Faltas', 'H']));
+
+    if (!gerente || !corretor || !mes) return;
+    if (!totalPlantoes && !faltas) return;
+
+    plantaoEntries.push({
+      diretor,
+      gerente,
+      corretor,
+      mesVigente: mes,
+      plantoes: totalPlantoes,
+      faltas,
+    });
   });
 
   monthlyGoals.forEach((goal, key) => {
@@ -232,5 +268,6 @@ export async function loadPerformanceData(signal?: AbortSignal) {
         a.gerente.localeCompare(b.gerente),
     ),
     salesEntries,
+    plantaoEntries,
   };
 }

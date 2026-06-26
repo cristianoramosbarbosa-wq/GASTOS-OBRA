@@ -24,7 +24,9 @@ import {
   Medal,
   LockKeyhole,
   LogOut,
-  Heart
+  Heart,
+  Users,
+  UserX
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -41,10 +43,10 @@ import {
 } from 'recharts';
 import type { PerformanceRecord } from './data';
 import { formatCurrency, formatMonthYear } from './data';
-import type { SalesEntry } from './googleSheetsPublic';
+import type { PlantaoEntry, SalesEntry } from './googleSheetsPublic';
 import { loadDashboardData } from './dataClient';
 
-type TabType = 'geral' | 'metas' | 'visitas' | 'vendas';
+type TabType = 'geral' | 'metas' | 'visitas' | 'vendas' | 'plantoes';
 type MetaViewType = 'gerente' | 'diretoria';
 
 const TAB_LABELS: Record<TabType, string> = {
@@ -52,6 +54,7 @@ const TAB_LABELS: Record<TabType, string> = {
   metas: 'Metas',
   visitas: 'Presença',
   vendas: 'Vendas',
+  plantoes: 'Plantões',
 };
 
 const CARD_STYLES = {
@@ -80,6 +83,15 @@ interface RankingItem {
   name: string;
   value: number;
   detail?: string;
+}
+
+interface PlantaoRankingItem {
+  name: string;
+  detail: string;
+  plantoes: number;
+  faltas: number;
+  corretores: number;
+  taxaFalta: number;
 }
 
 const PODIUM_STYLES = [
@@ -177,6 +189,66 @@ function RankingSection({
         </div>
       )}
     </section>
+  );
+}
+
+function PlantaoRankingTable({
+  title,
+  subtitle,
+  items,
+}: {
+  title: string;
+  subtitle: string;
+  items: PlantaoRankingItem[];
+}) {
+  return (
+    <div className="bg-white rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+      <div className="p-5 sm:p-7 border-b border-gray-100">
+        <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">{title}</h3>
+        <p className="mt-1 text-xs font-bold uppercase tracking-widest text-gray-400">{subtitle}</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-[760px] w-full text-left">
+          <thead>
+            <tr className="border-b border-gray-100 text-[10px] uppercase font-black text-gray-400 bg-gray-50/60">
+              <th className="px-6 py-4">#</th>
+              <th className="px-6 py-4">Nome</th>
+              <th className="px-6 py-4 text-right">Corretores</th>
+              <th className="px-6 py-4 text-right">Plantões</th>
+              <th className="px-6 py-4 text-right">Faltas</th>
+              <th className="px-6 py-4 text-right">% Falta</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {items.map((item, index) => (
+              <tr key={item.name} className="hover:bg-gray-50/60 transition-colors">
+                <td className="px-6 py-4">
+                  <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-xs font-black ${
+                    index < 3 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    {index + 1}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <p className="text-sm font-black text-gray-900">{item.name}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{item.detail}</p>
+                </td>
+                <td className="px-6 py-4 text-right text-sm font-black text-gray-700">{item.corretores}</td>
+                <td className="px-6 py-4 text-right text-sm font-black text-gray-900">{item.plantoes.toLocaleString()}</td>
+                <td className="px-6 py-4 text-right text-sm font-black text-red-600">{item.faltas.toLocaleString()}</td>
+                <td className="px-6 py-4 text-right">
+                  <span className={`rounded-full px-3 py-1 text-xs font-black ${
+                    item.taxaFalta > 0 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                  }`}>
+                    {item.taxaFalta.toFixed(1)}%
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
@@ -278,6 +350,7 @@ export default function App() {
   >(import.meta.env.DEV ? 'authenticated' : 'checking');
   const [data, setData] = useState<PerformanceRecord[]>([]);
   const [salesEntries, setSalesEntries] = useState<SalesEntry[]>([]);
+  const [plantaoEntries, setPlantaoEntries] = useState<PlantaoEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
@@ -307,9 +380,10 @@ export default function App() {
     setLoadError('');
 
     loadDashboardData(controller.signal)
-      .then(({ records, salesEntries: loadedSales }) => {
+      .then(({ records, salesEntries: loadedSales, plantaoEntries: loadedPlantoes = [] }) => {
         setData(records);
         setSalesEntries(loadedSales);
+        setPlantaoEntries(loadedPlantoes);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -499,6 +573,116 @@ export default function App() {
     };
   }, [filteredSalesEntries]);
 
+  const filteredPlantaoEntries = useMemo(() => {
+    const search = searchTerm.toLowerCase();
+    return plantaoEntries.filter((entry) => {
+      const matchDirector =
+        selectedDirector === 'Todos' || entry.diretor === selectedDirector;
+      const matchMonth =
+        selectedMonth === 'Todos' || entry.mesVigente === selectedMonth;
+      const matchSearch =
+        entry.corretor.toLowerCase().includes(search) ||
+        entry.gerente.toLowerCase().includes(search) ||
+        entry.diretor.toLowerCase().includes(search);
+      return matchDirector && matchMonth && matchSearch;
+    });
+  }, [plantaoEntries, selectedDirector, selectedMonth, searchTerm]);
+
+  const plantaoStats = useMemo(() => {
+    const totalPlantoes = filteredPlantaoEntries.reduce((acc, curr) => acc + curr.plantoes, 0);
+    const totalFaltas = filteredPlantaoEntries.reduce((acc, curr) => acc + curr.faltas, 0);
+    const corretores = new Set(filteredPlantaoEntries.map((entry) => entry.corretor).filter(Boolean));
+    const gerentesComFaltas = new Set(
+      filteredPlantaoEntries
+        .filter((entry) => entry.faltas > 0)
+        .map((entry) => entry.gerente),
+    );
+    const taxaFalta = percentage(totalFaltas, totalPlantoes + totalFaltas);
+
+    return {
+      totalPlantoes,
+      totalFaltas,
+      taxaFalta,
+      corretores: corretores.size,
+      gerentesComFaltas: gerentesComFaltas.size,
+    };
+  }, [filteredPlantaoEntries]);
+
+  const plantaoRankings = useMemo(() => {
+    const aggregate = (
+      keySelector: (entry: PlantaoEntry) => string,
+      detailSelector: (entry: PlantaoEntry) => string,
+    ) => {
+      const ranking = new Map<
+        string,
+        {
+          name: string;
+          detail: string;
+          plantoes: number;
+          faltas: number;
+          corretores: Set<string>;
+        }
+      >();
+
+      filteredPlantaoEntries.forEach((entry) => {
+        const name = keySelector(entry);
+        if (!name) return;
+        const current =
+          ranking.get(name) ?? {
+            name,
+            detail: detailSelector(entry),
+            plantoes: 0,
+            faltas: 0,
+            corretores: new Set<string>(),
+          };
+
+        current.plantoes += entry.plantoes;
+        current.faltas += entry.faltas;
+        if (entry.corretor) current.corretores.add(entry.corretor);
+        ranking.set(name, current);
+      });
+
+      return [...ranking.values()]
+        .map((item): PlantaoRankingItem => ({
+          name: item.name,
+          detail: item.detail,
+          plantoes: item.plantoes,
+          faltas: item.faltas,
+          corretores: item.corretores.size,
+          taxaFalta: percentage(item.faltas, item.plantoes + item.faltas),
+        }))
+        .sort((a, b) => b.faltas - a.faltas || b.taxaFalta - a.taxaFalta || b.plantoes - a.plantoes);
+    };
+
+    return {
+      gerentes: aggregate(
+        (entry) => entry.gerente,
+        (entry) => entry.diretor,
+      ),
+      diretorias: aggregate(
+        (entry) => entry.diretor,
+        () => 'Diretoria',
+      ),
+      corretores: aggregate(
+        (entry) => entry.corretor,
+        (entry) => `${entry.gerente} · ${entry.diretor}`,
+      ),
+    };
+  }, [filteredPlantaoEntries]);
+
+  const plantaoDiretoriaChart = useMemo(
+    () =>
+      plantaoRankings.diretorias
+        .filter((item) => item.plantoes > 0 || item.faltas > 0)
+        .map((item) => ({
+          name: item.name,
+          plantoes: item.plantoes,
+          faltas: item.faltas,
+          taxa: item.taxaFalta,
+        })),
+    [plantaoRankings.diretorias],
+  );
+
   const COLORS = ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   if (authStatus === 'checking') {
@@ -520,6 +704,7 @@ export default function App() {
     });
     setData([]);
     setSalesEntries([]);
+    setPlantaoEntries([]);
     setAuthStatus('unauthenticated');
   };
 
@@ -540,7 +725,7 @@ export default function App() {
             </div>
             
             <div className="hidden lg:flex items-center gap-2 bg-gray-50 p-1 rounded-full border border-gray-100">
-              {(['geral', 'metas', 'visitas', 'vendas'] as TabType[]).map((tab) => (
+              {(['geral', 'metas', 'visitas', 'vendas', 'plantoes'] as TabType[]).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -930,6 +1115,132 @@ export default function App() {
             </motion.div>
           )}
 
+          {activeTab === 'plantoes' && (
+            <motion.div
+              key="plantoes"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6 sm:space-y-8"
+            >
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                {[
+                  {
+                    label: 'Total de Plantões',
+                    value: plantaoStats.totalPlantoes.toLocaleString(),
+                    icon: Calendar,
+                    color: 'indigo',
+                  },
+                  {
+                    label: 'Total de Faltas',
+                    value: plantaoStats.totalFaltas.toLocaleString(),
+                    icon: UserX,
+                    color: 'orange',
+                  },
+                  {
+                    label: 'Taxa de Falta',
+                    value: `${plantaoStats.taxaFalta.toFixed(1)}%`,
+                    icon: Target,
+                    color: 'emerald',
+                  },
+                  {
+                    label: 'Corretores Escalados',
+                    value: plantaoStats.corretores.toLocaleString(),
+                    icon: Users,
+                    color: 'blue',
+                  },
+                  {
+                    label: 'Gerentes com Faltas',
+                    value: plantaoStats.gerentesComFaltas.toLocaleString(),
+                    icon: AlertCircle,
+                    color: 'orange',
+                  },
+                ].map((card) => {
+                  const Icon = card.icon;
+                  const style = CARD_STYLES[card.color as keyof typeof CARD_STYLES];
+                  return (
+                    <div key={card.label} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{card.label}</p>
+                          <p className="mt-2 text-2xl font-black text-gray-900">{card.value}</p>
+                        </div>
+                        <div className={`rounded-2xl p-3 ${style.icon}`}>
+                          <Icon size={22} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+                <div className="lg:col-span-3 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+                  <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
+                    <BarChart3 className="text-indigo-600" size={24} /> Plantões x Faltas por Diretoria
+                  </h3>
+                  <div className="overflow-x-auto pb-2">
+                    <div className="h-[320px] min-w-[680px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={plantaoDiretoriaChart} barGap={8} barCategoryGap="24%">
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} />
+                          <Tooltip />
+                          <Bar dataKey="plantoes" name="Plantões" fill="#eb194b" radius={[8, 8, 0, 0]} />
+                          <Bar dataKey="faltas" name="Faltas" fill="#000000" radius={[8, 8, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-2 bg-black p-6 sm:p-8 rounded-3xl lg:rounded-[40px] text-white">
+                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-200">Leitura operacional</p>
+                  <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter">Foco em escala e faltas</h3>
+                  <p className="mt-4 text-sm font-medium text-white/70">
+                    Esta visão desconsidera ofertas, captações e leads porque esses números ainda precisam de validação oficial.
+                  </p>
+                  <div className="mt-8 space-y-4">
+                    <div className="rounded-2xl bg-white/10 p-4">
+                      <span className="text-[10px] font-bold uppercase text-white/50">Maior volume de faltas</span>
+                      <p className="mt-1 text-lg font-black">{plantaoRankings.gerentes[0]?.name ?? '-'}</p>
+                      <p className="text-xs font-bold text-red-200">
+                        {plantaoRankings.gerentes[0]?.faltas.toLocaleString() ?? '0'} faltas
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-white/10 p-4">
+                      <span className="text-[10px] font-bold uppercase text-white/50">Diretoria mais crítica</span>
+                      <p className="mt-1 text-lg font-black">{plantaoRankings.diretorias[0]?.name ?? '-'}</p>
+                      <p className="text-xs font-bold text-red-200">
+                        {plantaoRankings.diretorias[0]?.taxaFalta.toFixed(1) ?? '0.0'}% de falta
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <PlantaoRankingTable
+                  title="Ranking de Gerentes por Faltas"
+                  subtitle="Ordenado por maior volume de faltas."
+                  items={plantaoRankings.gerentes.slice(0, 15)}
+                />
+                <PlantaoRankingTable
+                  title="Ranking de Diretorias"
+                  subtitle="Plantões, faltas e taxa de falta por diretoria."
+                  items={plantaoRankings.diretorias}
+                />
+              </div>
+
+              <PlantaoRankingTable
+                title="Corretores com Faltas"
+                subtitle="Detalhamento dos corretores com registro de falta."
+                items={plantaoRankings.corretores.filter((item) => item.faltas > 0).slice(0, 30)}
+              />
+            </motion.div>
+          )}
+
           {activeTab === 'vendas' && (
             <motion.div 
               key="vendas"
@@ -1008,8 +1319,8 @@ export default function App() {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] backdrop-blur-md lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-          {(['geral', 'metas', 'visitas', 'vendas'] as TabType[]).map((tab) => (
+        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
+          {(['geral', 'metas', 'visitas', 'vendas', 'plantoes'] as TabType[]).map((tab) => (
             <button
               key={tab}
               type="button"
