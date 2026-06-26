@@ -24,7 +24,6 @@ import {
   Medal,
   LockKeyhole,
   LogOut,
-  Heart,
   Users,
   UserX
 } from 'lucide-react';
@@ -290,8 +289,8 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
     <main className="flex min-h-screen items-center justify-center bg-[#F8F9FA] px-4">
       <div className="w-full max-w-md overflow-hidden rounded-[36px] border border-gray-100 bg-white shadow-xl shadow-indigo-100/50">
         <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 px-8 py-10 text-white">
-          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-            <LockKeyhole size={26} />
+          <div className="mb-6 inline-flex rounded-2xl bg-white px-4 py-3 shadow-sm">
+            <img src="/lopes-logo.png" alt="Lopes" className="h-10 w-auto" />
           </div>
           <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-200">
             Área restrita
@@ -718,8 +717,8 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="min-h-16 py-3 flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-              <div className="shrink-0 bg-indigo-600 p-2 rounded-xl text-white">
-                <Heart size={22} fill="currentColor" />
+              <div className="shrink-0 rounded-xl bg-white px-2.5 py-2 ring-1 ring-gray-100">
+                <img src="/lopes-logo.png" alt="Lopes" className="h-7 w-auto" />
               </div>
               <h1 className="truncate text-sm font-black tracking-tighter text-gray-900 border-l border-gray-200 pl-3 uppercase sm:text-lg sm:pl-4">
                 <span className="sm:hidden">BI <span className="text-indigo-600">Lopes Rio</span></span>
