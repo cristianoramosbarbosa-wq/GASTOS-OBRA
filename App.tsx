@@ -1201,24 +1201,38 @@ export default function App() {
                 <div className="lg:col-span-2 bg-black p-6 sm:p-8 rounded-3xl lg:rounded-[40px] text-white">
                   <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-200">Leitura operacional</p>
                   <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter">Foco em escala e faltas</h3>
-                  <p className="mt-4 text-sm font-medium text-white/70">
-                    Esta visão desconsidera ofertas, captações e leads porque esses números ainda precisam de validação oficial.
-                  </p>
                   <div className="mt-8 space-y-4">
-                    <div className="rounded-2xl bg-white/10 p-4">
-                      <span className="text-[10px] font-bold uppercase text-white/50">Maior volume de faltas</span>
-                      <p className="mt-1 text-lg font-black">{plantaoRankings.gerentes[0]?.name ?? '-'}</p>
-                      <p className="text-xs font-bold text-red-200">
-                        {plantaoRankings.gerentes[0]?.faltas.toLocaleString() ?? '0'} faltas
-                      </p>
-                    </div>
-                    <div className="rounded-2xl bg-white/10 p-4">
-                      <span className="text-[10px] font-bold uppercase text-white/50">Diretoria mais crítica</span>
-                      <p className="mt-1 text-lg font-black">{plantaoRankings.diretorias[0]?.name ?? '-'}</p>
-                      <p className="text-xs font-bold text-red-200">
-                        {plantaoRankings.diretorias[0]?.taxaFalta.toFixed(1) ?? '0.0'}% de falta
-                      </p>
-                    </div>
+                    {plantaoStats.totalFaltas > 0 ? (
+                      <>
+                        <div className="rounded-2xl bg-white/10 p-4">
+                          <span className="text-[10px] font-bold uppercase text-white/50">Maior volume de faltas</span>
+                          <p className="mt-1 text-lg font-black">{plantaoRankings.gerentes.find((item) => item.faltas > 0)?.name ?? '-'}</p>
+                          <p className="text-xs font-bold text-red-200">
+                            {plantaoRankings.gerentes.find((item) => item.faltas > 0)?.faltas.toLocaleString() ?? '0'} faltas
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-white/10 p-4">
+                          <span className="text-[10px] font-bold uppercase text-white/50">Diretoria mais crítica</span>
+                          <p className="mt-1 text-lg font-black">{plantaoRankings.diretorias.find((item) => item.faltas > 0)?.name ?? '-'}</p>
+                          <p className="text-xs font-bold text-red-200">
+                            {plantaoRankings.diretorias.find((item) => item.faltas > 0)?.taxaFalta.toFixed(1) ?? '0.0'}% de falta
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="rounded-2xl bg-white/10 p-4">
+                          <span className="text-[10px] font-bold uppercase text-white/50">Operação sem faltas</span>
+                          <p className="mt-1 text-lg font-black">Escala cumprida</p>
+                          <p className="text-xs font-bold text-emerald-200">Nenhuma falta registrada no filtro atual</p>
+                        </div>
+                        <div className="rounded-2xl bg-white/10 p-4">
+                          <span className="text-[10px] font-bold uppercase text-white/50">Status da operação</span>
+                          <p className="mt-1 text-lg font-black">Tudo em ordem</p>
+                          <p className="text-xs font-bold text-emerald-200">{plantaoStats.totalPlantoes.toLocaleString()} plantões acompanhados</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
