@@ -1,19 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Montserrat", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
   /* Lopes Visual Identity Colors */
-  --color-lopes-orange: #f15a24;
-  --color-lopes-orange-dark: #cc4c1e;
-  --color-lopes-black: #1a1a1a;
+  --color-lopes-red: #eb194b;
+  --color-lopes-red-dark: #c9143f;
+  --color-lopes-red-soft: #fde8ed;
+  --color-lopes-black: #000000;
   --color-lopes-gray: #333333;
+  --color-lopes-yellow: #ffbe55;
+  --color-lopes-celeste: #55e1e6;
+  --color-lopes-orange: #ff9169;
+  --color-lopes-green: #46dcaa;
+  --color-lopes-blue: #91beff;
   
   /* Override standard colors for ease of use in existing code */
-  --color-orange-500: #f15a24;
-  --color-orange-600: #d94e1c;
+  --color-red-500: #eb194b;
+  --color-red-600: #eb194b;
+  --color-red-700: #c9143f;
+  --color-indigo-50: #fde8ed;
+  --color-indigo-100: #fbd1dc;
+  --color-indigo-200: #f7a3b9;
+  --color-indigo-400: #f05d80;
+  --color-indigo-500: #eb194b;
+  --color-indigo-600: #eb194b;
+  --color-indigo-700: #d31645;
+  --color-indigo-800: #b8123a;
+  --color-blue-500: #91beff;
+  --color-blue-600: #4f8fee;
+  --color-emerald-400: #46dcaa;
+  --color-emerald-500: #46dcaa;
+  --color-emerald-600: #1c9d76;
+  --color-orange-500: #ff9169;
+  --color-orange-600: #e86f47;
   --color-zinc-950: #0f0f0f;
   --color-zinc-900: #1a1a1a;
   --color-zinc-800: #2a2a2a;
@@ -38,7 +60,7 @@
     @apply bg-transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-zinc-200 rounded-full hover:bg-lopes-orange/30 transition-colors;
+    @apply bg-zinc-200 rounded-full hover:bg-lopes-red/30 transition-colors;
   }
 
   .geo-card {
@@ -50,15 +72,14 @@
   }
   
   .geo-button-primary {
-    @apply px-4 py-2 bg-lopes-orange hover:bg-lopes-orange-dark text-white font-bold text-xs uppercase tracking-widest transition-all rounded-sm shadow-md;
+    @apply px-4 py-2 bg-lopes-red hover:bg-lopes-red-dark text-white font-bold text-xs uppercase tracking-widest transition-all rounded-sm shadow-md;
   }
 
   .geo-input {
-    @apply bg-white border border-zinc-200 rounded-sm px-4 py-2 text-xs focus:ring-1 focus:ring-lopes-orange focus:border-lopes-orange outline-none transition-all text-zinc-900;
+    @apply bg-white border border-zinc-200 rounded-sm px-4 py-2 text-xs focus:ring-1 focus:ring-lopes-red focus:border-lopes-red outline-none transition-all text-zinc-900;
   }
 
   .font-mono-data {
     @apply font-mono text-[11px] tracking-tight;
   }
 }
-

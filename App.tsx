@@ -23,7 +23,8 @@ import {
   Trophy,
   Medal,
   LockKeyhole,
-  LogOut
+  LogOut,
+  Heart
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -530,11 +531,11 @@ export default function App() {
           <div className="min-h-16 py-3 flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               <div className="shrink-0 bg-indigo-600 p-2 rounded-xl text-white">
-                <TrendingUp size={22} />
+                <Heart size={22} fill="currentColor" />
               </div>
               <h1 className="truncate text-sm font-black tracking-tighter text-gray-900 border-l border-gray-200 pl-3 uppercase sm:text-lg sm:pl-4">
                 <span className="sm:hidden">BI <span className="text-indigo-600">Lopes Rio</span></span>
-                <span className="hidden sm:inline">BI Corporate <span className="text-indigo-600">Analytics</span></span>
+                <span className="hidden sm:inline">BI <span className="text-indigo-600">Lopes Rio</span></span>
               </h1>
             </div>
             
