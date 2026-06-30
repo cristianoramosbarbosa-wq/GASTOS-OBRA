@@ -204,6 +204,7 @@ export async function loadPerformanceData(signal?: AbortSignal) {
       mes,
       weekNumber(getValue(row, ['semana']), date),
     );
+    record.possuiRelatorioPresenca = true;
     record.visitas += parseNumber(getValue(row, ['PRESENÇA', 'presenca', 'visitas']));
     record.agendamentos += parseNumber(getValue(row, ['AGENDADAS', 'agendamentos']));
   });

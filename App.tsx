@@ -455,7 +455,9 @@ export default function App() {
       }
     >();
 
-    filteredData.forEach(item => {
+    filteredData
+      .filter((item) => item.possuiRelatorioPresenca)
+      .forEach(item => {
       const key = `${item.mesVigente}|${item.semana}`;
       const existing =
         weeks.get(key) ?? {

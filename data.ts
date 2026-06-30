@@ -7,6 +7,7 @@ export interface PerformanceRecord {
   vendasReais: number;
   visitas: number;
   agendamentos: number;
+  possuiRelatorioPresenca?: boolean;
 }
 
 export const formatCurrency = (value: number) =>
