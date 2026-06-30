@@ -442,6 +442,15 @@ export default function App() {
       .sort((a, b) => b.meta - a.meta);
   }, [filteredData]);
 
+  const marketShareData = useMemo(
+    () =>
+      [...comparisonData]
+        .filter((item) => item.venda > 0)
+        .sort((a, b) => b.venda - a.venda)
+        .slice(0, 5),
+    [comparisonData],
+  );
+
   // Chart Data: Visits by month and week
   const weeklyTrendData = useMemo(() => {
     const weeks = new Map<
@@ -687,7 +696,7 @@ export default function App() {
     [plantaoRankings.diretorias],
   );
 
-  const COLORS = ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const COLORS = ['#eb194b', '#000000', '#ff9169', '#46dcaa', '#91beff', '#ffbe55', '#55e1e6'];
 
   if (authStatus === 'checking') {
     return (
@@ -909,7 +918,7 @@ export default function App() {
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                            data={comparisonData.slice(0, 5)}
+                            data={marketShareData}
                             cx="50%"
                             cy="50%"
                             innerRadius={60}
@@ -917,20 +926,22 @@ export default function App() {
                             paddingAngle={8}
                             dataKey="venda"
                           >
-                            {comparisonData.slice(0, 5).map((item, i) => <Cell key={item.name} fill={COLORS[i % COLORS.length]} />)}
+                            {marketShareData.map((item, i) => <Cell key={item.name} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
                           <Tooltip />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
                     <div className="w-full space-y-3">
-                      {comparisonData.slice(0, 4).map((d, i) => (
+                      {marketShareData.map((d, i) => (
                         <div key={d.name} className="flex items-center justify-between">
                            <div className="flex items-center gap-2">
-                             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
+                             <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black text-white" style={{ backgroundColor: COLORS[i % COLORS.length] }}>
+                               {i + 1}
+                             </span>
                              <span className="text-[10px] font-bold text-gray-500 uppercase">{d.name}</span>
                            </div>
-                           <span className="text-xs font-black text-gray-900">{percentage(d.venda, stats.totalVendas).toFixed(0)}%</span>
+                           <span className="text-xs font-black text-gray-900">{percentage(d.venda, stats.totalVendas).toFixed(1)}%</span>
                         </div>
                       ))}
                     </div>
