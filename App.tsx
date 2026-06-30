@@ -581,6 +581,7 @@ export default function App() {
       gerentes: aggregate(
         (entry) => entry.gerente,
         (entry) => entry.diretor,
+        (entry) => entry.gerente !== entry.diretor,
       ),
       diretorias: aggregate((entry) => entry.diretor),
     };
