@@ -22,6 +22,8 @@ export interface SalesEntry {
   diretor: string;
   gerente: string;
   corretor: string;
+  incorporador: string;
+  empreendimento: string;
   mesVigente: string;
   vgv: number;
 }
@@ -213,6 +215,8 @@ export async function loadPerformanceData(signal?: AbortSignal) {
     const diretor = normalizePerson(getValue(row, ['Diretor', 'Diretoria']));
     const gerente = normalizePerson(getValue(row, ['Gerente']));
     const corretor = normalizePerson(getValue(row, ['Corretor']));
+    const incorporador = normalizePerson(getValue(row, ['INCORPORADOR', 'Incorporador']));
+    const empreendimento = normalizePerson(getValue(row, ['UNIDADE', 'Empreendimento', 'Produto']));
     const date = getValue(row, ['DATA', 'dia']);
     const mes = monthKey(date);
     const vgv = parseNumber(getValue(row, ['VGV', 'Vendas']));
@@ -220,7 +224,15 @@ export async function loadPerformanceData(signal?: AbortSignal) {
 
     if (!managerDirector.has(gerente)) managerDirector.set(gerente, diretor);
     ensureRecord(diretor, gerente, mes, weekNumber(undefined, date)).vendasReais += vgv;
-    salesEntries.push({ diretor, gerente, corretor, mesVigente: mes, vgv });
+    salesEntries.push({
+      diretor,
+      gerente,
+      corretor,
+      incorporador,
+      empreendimento,
+      mesVigente: mes,
+      vgv,
+    });
   });
 
   plantoes.forEach((row) => {

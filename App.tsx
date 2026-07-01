@@ -548,7 +548,9 @@ export default function App() {
       const matchSearch =
         entry.corretor.toLowerCase().includes(search) ||
         entry.gerente.toLowerCase().includes(search) ||
-        entry.diretor.toLowerCase().includes(search);
+        entry.diretor.toLowerCase().includes(search) ||
+        entry.incorporador.toLowerCase().includes(search) ||
+        entry.empreendimento.toLowerCase().includes(search);
       return matchDirector && matchMonth && matchSearch;
     });
   }, [salesEntries, selectedDirector, selectedMonth, searchTerm]);
@@ -587,6 +589,14 @@ export default function App() {
         (entry) => entry.gerente !== entry.diretor,
       ),
       diretorias: aggregate((entry) => entry.diretor),
+      incorporadores: aggregate(
+        (entry) => entry.incorporador,
+        () => 'Incorporador',
+      ),
+      empreendimentos: aggregate(
+        (entry) => entry.empreendimento,
+        (entry) => entry.incorporador || 'Empreendimento',
+      ),
     };
   }, [filteredSalesEntries]);
 
@@ -1362,6 +1372,16 @@ export default function App() {
                   title="Ranking de Diretorias"
                   subtitle="VGV acumulado de todos os gerentes e corretores da diretoria."
                   items={salesRankings.diretorias}
+                />
+                <RankingSection
+                  title="Top 10 Incorporadores"
+                  subtitle="VGV acumulado por incorporador conforme os filtros selecionados."
+                  items={salesRankings.incorporadores}
+                />
+                <RankingSection
+                  title="Top 10 Empreendimentos"
+                  subtitle="VGV acumulado por empreendimento conforme os filtros selecionados."
+                  items={salesRankings.empreendimentos}
                 />
               </div>
             </motion.div>
