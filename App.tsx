@@ -866,7 +866,7 @@ export default function App() {
               {/* Executive Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {[
-                  { label: 'Receita Total', value: formatCurrency(stats.totalVendas), growth: '+12%', color: 'indigo', icon: DollarSign },
+                  { label: 'VGV Intermediado', value: formatCurrency(stats.totalVendas), growth: '+12%', color: 'indigo', icon: DollarSign },
                   { label: 'Presenças na Sede', value: stats.totalVisitas.toLocaleString(), growth: 'Corretores', color: 'blue', icon: UserCheck },
                   { label: 'Agendadas com Clientes', value: stats.totalAgendamentos.toLocaleString(), growth: 'Gerentes', color: 'emerald', icon: MousePointerClick },
                   { label: 'Performance', value: `${stats.performance.toFixed(1)}%`, growth: 'On Track', color: 'orange', icon: Target },
@@ -889,24 +889,39 @@ export default function App() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-8">
                  <div className="lg:col-span-2 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
                     <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
-                      <BarChart3 className="text-indigo-600" size={24} /> Tendência de Vendas vs Meta
+                      <BarChart3 className="text-indigo-600" size={24} /> VGV Realizado vs Meta
                     </h3>
                     <div className="overflow-x-auto pb-2">
-                      <div className="h-[300px] min-w-[520px] sm:h-[400px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={comparisonData.slice(0, 5)} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9CA3AF' }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} tickFormatter={(v) => `R$${v/1000000}M`} />
-                          <Tooltip 
-                            cursor={{ fill: '#F9FAFB' }}
-                            contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-                            formatter={(value) => formatCurrency(Number(value))}
-                          />
-                          <Bar dataKey="meta" name="Meta" fill="#E5E7EB" radius={[8, 8, 0, 0]} barSize={32} />
-                          <Bar dataKey="venda" name="Venda" fill="#6366F1" radius={[8, 8, 0, 0]} barSize={32} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <div className="grid h-[320px] min-w-[620px] grid-cols-5 items-end gap-4 sm:h-[400px] sm:gap-6">
+                        {comparisonData.slice(0, 5).map((item) => {
+                          const attainment = percentage(item.venda, item.meta);
+                          const fillHeight = Math.min(attainment, 100);
+                          return (
+                            <div key={item.name} className="flex h-full flex-col items-center justify-end gap-3">
+                              <div
+                                className="group relative flex h-full w-full max-w-[86px] items-end overflow-hidden rounded-[28px] border-2 border-gray-200 bg-gray-50 shadow-inner"
+                                title={`${item.name} | Meta: ${formatCurrency(item.meta)} | VGV: ${formatCurrency(item.venda)} | Atingimento: ${attainment.toFixed(1)}%`}
+                              >
+                                <div
+                                  className="absolute bottom-0 left-0 right-0 rounded-t-[24px] bg-gradient-to-t from-red-700 to-red-500 transition-all duration-700"
+                                  style={{ height: `${fillHeight}%` }}
+                                />
+                                <div className="absolute inset-x-2 top-2 rounded-full border border-white/70 bg-white/70 px-2 py-1 text-center text-[10px] font-black text-gray-900 shadow-sm">
+                                  {attainment.toFixed(0)}%
+                                </div>
+                                {attainment > 100 && (
+                                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-black text-white shadow-sm">
+                                    +{(attainment - 100).toFixed(0)}%
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-center">
+                                <p className="max-w-[110px] truncate text-[10px] font-black uppercase text-gray-700">{item.name}</p>
+                                <p className="mt-1 text-[10px] font-bold text-gray-400">{formatCurrency(item.venda)}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                  </div>
@@ -929,7 +944,10 @@ export default function App() {
                           >
                             {marketShareData.map((item, i) => <Cell key={item.name} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
-                          <Tooltip />
+                          <Tooltip
+                            contentStyle={{ borderRadius: '18px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                            formatter={(value) => formatCurrency(Number(value))}
+                          />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
