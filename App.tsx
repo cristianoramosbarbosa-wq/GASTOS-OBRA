@@ -425,13 +425,16 @@ export default function App() {
     return { totalMeta, totalVendas, totalVisitas, totalAgendamentos, performance };
   }, [filteredData]);
 
-  // Chart Data: Meta vs Vendas by Director
+  const generalChartLevel = selectedDirector === 'Todos' ? 'Diretorias' : 'Gerentes';
+
+  // Chart Data: Meta vs Vendas by Director or Manager
   const comparisonData = useMemo(() => {
     const aggregation: Record<string, { meta: number; venda: number }> = {};
     filteredData.forEach(item => {
-      if (!aggregation[item.diretor]) aggregation[item.diretor] = { meta: 0, venda: 0 };
-      aggregation[item.diretor].meta += item.metaMensal;
-      aggregation[item.diretor].venda += item.vendasReais;
+      const name = selectedDirector === 'Todos' ? item.diretor : item.gerente;
+      if (!aggregation[name]) aggregation[name] = { meta: 0, venda: 0 };
+      aggregation[name].meta += item.metaMensal;
+      aggregation[name].venda += item.vendasReais;
     });
     return Object.entries(aggregation)
       .map(([name, vals]) => ({ 
@@ -439,8 +442,8 @@ export default function App() {
         meta: Math.round(vals.meta), 
         venda: Math.round(vals.venda) 
       }))
-      .sort((a, b) => b.meta - a.meta);
-  }, [filteredData]);
+      .sort((a, b) => b.venda - a.venda);
+  }, [filteredData, selectedDirector]);
 
   const marketShareData = useMemo(
     () =>
@@ -889,7 +892,7 @@ export default function App() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-8">
                  <div className="lg:col-span-2 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
                     <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
-                      <BarChart3 className="text-indigo-600" size={24} /> VGV Realizado vs Meta
+                      <BarChart3 className="text-indigo-600" size={24} /> VGV Realizado vs Meta por {generalChartLevel}
                     </h3>
                     <div className="overflow-x-auto pb-2">
                       <div className="grid h-[320px] min-w-[620px] grid-cols-5 items-end gap-4 sm:h-[400px] sm:gap-6">
@@ -928,7 +931,7 @@ export default function App() {
 
                  <div className="bg-white p-5 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 flex flex-col items-center justify-center space-y-6 sm:space-y-8">
                     <h3 className="font-black text-gray-900 uppercase tracking-tighter self-start flex items-center gap-3">
-                      <PieChartIcon className="text-indigo-600" size={24} /> Market Share
+                      <PieChartIcon className="text-indigo-600" size={24} /> Market Share por {generalChartLevel}
                     </h3>
                     <div className="h-[250px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
