@@ -69,7 +69,13 @@ const normalizeProductName = (value: unknown) => {
   });
 
   const productParts = stopIndex > 0 ? parts.slice(0, stopIndex) : parts;
-  return productParts.join('-').toUpperCase();
+  const productName = productParts.join('-').toUpperCase();
+
+  if (productName === 'RIIO BY PIERO LISSONI-LUCE') {
+    return 'RIIO BY PIERO LISSONI';
+  }
+
+  return productName;
 };
 
 const parseNumber = (value: unknown) => {
