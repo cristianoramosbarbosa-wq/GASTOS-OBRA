@@ -44,6 +44,34 @@ const normalizeText = (value: unknown) =>
 
 const normalizePerson = (value: unknown) => String(value ?? '').trim().toUpperCase();
 
+const normalizeProductName = (value: unknown) => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+
+  const parts = raw
+    .split(/\s+-\s+/)
+    .map((part) => part.replace(/\*/g, '').trim())
+    .filter(Boolean);
+
+  if (!parts.length) return '';
+  if (normalizeText(parts[0]) === 'revenda') return 'REVENDA';
+
+  const stopIndex = parts.findIndex((part, index) => {
+    const normalized = normalizeText(part);
+    const compact = normalized.replace(/[^a-z0-9]/g, '');
+
+    if (index === 0) return false;
+    if (/\b(bloco|torre|unico|unica|quadra|apto|apartamento)\b/.test(normalized)) return true;
+    if (/^\d+[a-z]?$/.test(compact)) return true;
+    if (/^[a-z]{0,3}\d{2,}$/.test(compact)) return true;
+
+    return false;
+  });
+
+  const productParts = stopIndex > 0 ? parts.slice(0, stopIndex) : parts;
+  return productParts.join('-').toUpperCase();
+};
+
 const parseNumber = (value: unknown) => {
   if (typeof value === 'number') return value;
   const cleaned = String(value ?? '').replace(/\s|R\$|m2|%/gi, '');
@@ -216,7 +244,7 @@ export async function loadPerformanceData(signal?: AbortSignal) {
     const gerente = normalizePerson(getValue(row, ['Gerente']));
     const corretor = normalizePerson(getValue(row, ['Corretor']));
     const incorporador = normalizePerson(getValue(row, ['INCORPORADOR', 'Incorporador']));
-    const empreendimento = normalizePerson(getValue(row, ['UNIDADE', 'Empreendimento', 'Produto']));
+    const empreendimento = normalizeProductName(getValue(row, ['UNIDADE', 'Empreendimento', 'Produto']));
     const date = getValue(row, ['DATA', 'dia']);
     const mes = monthKey(date);
     const vgv = parseNumber(getValue(row, ['VGV', 'Vendas']));
