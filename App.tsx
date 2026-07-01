@@ -25,7 +25,10 @@ import {
   LockKeyhole,
   LogOut,
   Users,
-  UserX
+  UserX,
+  Building2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -45,7 +48,7 @@ import { formatCurrency, formatMonthYear } from './data';
 import type { PlantaoEntry, SalesEntry } from './googleSheetsPublic';
 import { loadDashboardData } from './dataClient';
 
-type TabType = 'geral' | 'metas' | 'visitas' | 'vendas' | 'plantoes';
+type TabType = 'geral' | 'metas' | 'visitas' | 'vendas' | 'plantoes' | 'produtos';
 type MetaViewType = 'gerente' | 'diretoria';
 
 const TAB_LABELS: Record<TabType, string> = {
@@ -54,7 +57,19 @@ const TAB_LABELS: Record<TabType, string> = {
   visitas: 'Presença',
   vendas: 'Vendas',
   plantoes: 'Plantões',
+  produtos: 'Produtos',
 };
+
+const TAB_ICONS: Record<TabType, typeof LayoutDashboard> = {
+  geral: LayoutDashboard,
+  metas: Target,
+  visitas: Users,
+  vendas: BarChart3,
+  plantoes: Calendar,
+  produtos: Building2,
+};
+
+const MAIN_TABS: TabType[] = ['geral', 'metas', 'visitas', 'vendas', 'plantoes', 'produtos'];
 
 const CARD_STYLES = {
   indigo: {
@@ -96,22 +111,22 @@ interface PlantaoRankingItem {
 const PODIUM_STYLES = [
   {
     order: 1,
-    position: 'md:order-2',
-    height: 'h-40',
+    position: 'order-2',
+    height: 'h-28 sm:h-40',
     color: 'from-amber-300 to-amber-500',
     badge: 'bg-amber-100 text-amber-700',
   },
   {
     order: 2,
-    position: 'md:order-1',
-    height: 'h-32',
+    position: 'order-1',
+    height: 'h-24 sm:h-32',
     color: 'from-slate-300 to-slate-500',
     badge: 'bg-slate-100 text-slate-700',
   },
   {
     order: 3,
-    position: 'md:order-3',
-    height: 'h-24',
+    position: 'order-3',
+    height: 'h-20 sm:h-24',
     color: 'from-orange-300 to-orange-500',
     badge: 'bg-orange-100 text-orange-700',
   },
@@ -131,7 +146,7 @@ function RankingSection({
 
   return (
     <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6 lg:rounded-[40px] lg:p-8">
-      <div className="mb-8 flex items-start justify-between gap-4">
+      <div className="mb-5 flex items-start justify-between gap-4 sm:mb-8">
         <div>
           <h4 className="flex items-center gap-2 text-lg font-black uppercase tracking-tight text-gray-900">
             <Trophy size={20} className="text-amber-500" /> {title}
@@ -143,18 +158,18 @@ function RankingSection({
         </span>
       </div>
 
-      <div className="mb-8 grid grid-cols-1 items-end gap-5 md:grid-cols-3 md:gap-3">
+      <div className="mb-6 grid grid-cols-3 items-end gap-2 sm:mb-8 sm:gap-3">
         {topThree.map((item, index) => {
           const style = PODIUM_STYLES[index];
           return (
             <div key={item.name} className={`${style.position} flex flex-col items-center text-center`}>
-              <span className={`mb-2 rounded-full px-3 py-1 text-[10px] font-black uppercase ${style.badge}`}>
+              <span className={`mb-2 rounded-full px-2 py-1 text-[8px] font-black uppercase sm:px-3 sm:text-[10px] ${style.badge}`}>
                 {style.order}º lugar
               </span>
-              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50 text-xl font-black text-indigo-600">
+              <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-2xl bg-gray-50 text-base font-black text-indigo-600 sm:mb-3 sm:h-14 sm:w-14 sm:text-xl">
                 {item.name.charAt(0)}
               </div>
-              <p className="max-w-full truncate text-xs font-black uppercase text-gray-900" title={item.name}>
+              <p className="max-w-full truncate text-[9px] font-black uppercase text-gray-900 sm:text-xs" title={item.name}>
                 {item.name}
               </p>
               {item.detail && (
@@ -162,9 +177,9 @@ function RankingSection({
                   {item.detail}
                 </p>
               )}
-              <p className="mb-3 mt-2 text-sm font-black text-indigo-600">{formatCurrency(item.value)}</p>
-              <div className={`flex w-full items-start justify-center rounded-t-3xl bg-gradient-to-b ${style.color} ${style.height} pt-5 text-white`}>
-                <Medal size={26} />
+              <p className="mb-2 mt-1 text-[10px] font-black text-indigo-600 sm:mb-3 sm:mt-2 sm:text-sm">{formatCurrency(item.value)}</p>
+              <div className={`flex w-full items-start justify-center rounded-t-3xl bg-gradient-to-b ${style.color} ${style.height} pt-4 text-white sm:pt-5`}>
+                <Medal size={22} />
               </div>
             </div>
           );
@@ -354,6 +369,7 @@ export default function App() {
   const [loadError, setLoadError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [activeTab, setActiveTab] = useState<TabType>('geral');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedDirector, setSelectedDirector] = useState<string>('Todos');
   const [selectedMonth, setSelectedMonth] = useState<string>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
@@ -737,8 +753,58 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A] font-sans selection:bg-indigo-100 pb-28 md:pb-20">
+      <aside
+        className={`fixed left-0 top-0 z-50 hidden h-screen flex-col bg-red-700 text-white shadow-2xl shadow-red-900/20 transition-all duration-300 lg:flex ${
+          isSidebarCollapsed ? 'w-20' : 'w-44'
+        }`}
+      >
+        <div className="flex h-20 items-center justify-center border-b border-white/10 px-3">
+          <div className="rounded-2xl bg-white px-3 py-2">
+            <img src="/lopes-logo.png" alt="Lopes" className={isSidebarCollapsed ? 'h-7 w-auto max-w-10 object-contain' : 'h-8 w-auto max-w-28 object-contain'} />
+          </div>
+        </div>
+        <nav className="flex flex-1 flex-col gap-2 px-3 py-5">
+          {MAIN_TABS.map((tab) => {
+            const Icon = TAB_ICONS[tab];
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                title={TAB_LABELS[tab]}
+                className={`group flex items-center rounded-2xl px-3 py-3 text-left transition-all ${
+                  isSidebarCollapsed ? 'justify-center' : 'gap-3'
+                } ${
+                  activeTab === tab
+                    ? 'bg-white text-red-700 shadow-lg shadow-red-950/20'
+                    : 'text-white/85 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <Icon size={22} className="shrink-0" />
+                {!isSidebarCollapsed && (
+                  <span className="text-xs font-black uppercase tracking-tight">{TAB_LABELS[tab]}</span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="border-t border-white/10 p-3">
+          <button
+            type="button"
+            onClick={() => setIsSidebarCollapsed((value) => !value)}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white/10 px-3 py-3 text-xs font-black uppercase text-white transition-colors hover:bg-white/20"
+            title={isSidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
+          >
+            {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            {!isSidebarCollapsed && 'Recolher'}
+          </button>
+        </div>
+      </aside>
+
       {/* Top Header */}
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
+      <header className={`sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm transition-all duration-300 ${
+        isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-44'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="min-h-16 py-3 flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3 sm:gap-4">
@@ -751,22 +817,6 @@ export default function App() {
               </h1>
             </div>
             
-            <div className="hidden lg:flex items-center gap-2 bg-gray-50 p-1 rounded-full border border-gray-100">
-              {(['geral', 'metas', 'visitas', 'vendas', 'plantoes'] as TabType[]).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
-                    activeTab === tab 
-                      ? 'bg-white text-indigo-600 shadow-sm border border-gray-100' 
-                      : 'text-gray-400 hover:text-gray-600'
-                  }`}
-                >
-                  {TAB_LABELS[tab]}
-                </button>
-              ))}
-            </div>
-
             <div className="flex items-center gap-3">
               <div className="hidden sm:flex flex-col items-end mr-2">
                 <span className="text-[10px] font-bold text-gray-400 uppercase">Atingimento</span>
@@ -790,7 +840,9 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
+      <main className={`max-w-7xl px-3 py-5 transition-all duration-300 sm:px-6 sm:py-8 lg:px-8 ${
+        isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-44'
+      } lg:mr-auto`}>
         {isLoading && (
           <div className="mb-6 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm font-bold text-indigo-700">
             <RefreshCw size={18} className="animate-spin" />
@@ -1373,6 +1425,29 @@ export default function App() {
                   subtitle="VGV acumulado de todos os gerentes e corretores da diretoria."
                   items={salesRankings.diretorias}
                 />
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'produtos' && (
+            <motion.div
+              key="produtos"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 lg:rounded-[40px]">
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-500">Produtos e parceiros</p>
+                <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter text-gray-900">
+                  Ranking de Incorporadores e Empreendimentos
+                </h3>
+                <p className="mt-2 max-w-3xl text-sm font-medium text-gray-500">
+                  VGV acumulado por incorporador e por produto, respeitando os filtros de diretoria, mês e busca.
+                </p>
+              </div>
+
+              <div className="space-y-8">
                 <RankingSection
                   title="Top 10 Incorporadores"
                   subtitle="VGV acumulado por incorporador conforme os filtros selecionados."
@@ -1380,7 +1455,7 @@ export default function App() {
                 />
                 <RankingSection
                   title="Top 10 Empreendimentos"
-                  subtitle="VGV acumulado por empreendimento conforme os filtros selecionados."
+                  subtitle="VGV acumulado por empreendimento/produto conforme os filtros selecionados."
                   items={salesRankings.empreendimentos}
                 />
               </div>
@@ -1390,21 +1465,25 @@ export default function App() {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] backdrop-blur-md lg:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
-          {(['geral', 'metas', 'visitas', 'vendas', 'plantoes'] as TabType[]).map((tab) => (
+        <div className="mx-auto grid max-w-xl grid-cols-6 gap-1">
+          {MAIN_TABS.map((tab) => {
+            const Icon = TAB_ICONS[tab];
+            return (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`rounded-xl px-1 py-2.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
+              className={`flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-black uppercase tracking-tight transition-colors ${
                 activeTab === tab
                   ? 'bg-indigo-600 text-white'
                   : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'
               }`}
             >
+              <Icon size={16} />
               {TAB_LABELS[tab]}
             </button>
-          ))}
+            );
+          })}
         </div>
       </nav>
 
