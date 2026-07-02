@@ -805,7 +805,7 @@ export default function App() {
       <header className={`sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm transition-all duration-300 ${
         isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-44'
       }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="min-h-16 py-3 flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               <div className="shrink-0 rounded-xl bg-white px-2.5 py-2 ring-1 ring-gray-100">
@@ -840,9 +840,9 @@ export default function App() {
         </div>
       </header>
 
-      <main className={`max-w-7xl px-3 py-5 transition-all duration-300 sm:px-6 sm:py-8 lg:px-8 ${
+      <main className={`w-full max-w-none px-3 py-5 transition-all duration-300 sm:px-6 sm:py-8 lg:px-8 ${
         isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-44'
-      } lg:mr-auto`}>
+      }`}>
         {isLoading && (
           <div className="mb-6 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm font-bold text-indigo-700">
             <RefreshCw size={18} className="animate-spin" />
@@ -873,7 +873,7 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-4 sm:p-5 rounded-3xl shadow-sm border border-gray-100 mb-6 sm:mb-8 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end"
+          className="bg-white p-4 sm:p-5 rounded-3xl shadow-sm border border-gray-100 mb-6 sm:mb-8 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-[280px_280px_minmax(320px,1fr)] gap-4 items-end"
         >
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 ml-1">
@@ -901,7 +901,7 @@ export default function App() {
               {months.map(m => <option key={m} value={m}>{formatMonthYear(m)}</option>)}
             </select>
           </div>
-          <div className="space-y-1.5 lg:col-span-2">
+          <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 ml-1">
               <Search size={10} /> Buscar Gerente
             </label>
@@ -929,7 +929,7 @@ export default function App() {
               className="space-y-8"
             >
               {/* Executive Summary Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
                 {[
                   { label: 'VGV Intermediado', value: formatCurrency(stats.totalVendas), growth: '+12%', color: 'indigo', icon: DollarSign },
                   { label: 'Presenças na Sede', value: stats.totalVisitas.toLocaleString(), growth: 'Corretores', color: 'blue', icon: UserCheck },
@@ -951,13 +951,13 @@ export default function App() {
               </div>
 
               {/* Main Visualizations for General Tab */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-8">
-                 <div className="lg:col-span-2 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+              <div className="grid grid-cols-1 gap-5 sm:gap-8 xl:grid-cols-12">
+                 <div className="bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden xl:col-span-8 2xl:col-span-9">
                     <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
                       <BarChart3 className="text-indigo-600" size={24} /> VGV Realizado vs Meta por {generalChartLevel}
                     </h3>
                     <div className="overflow-x-auto pb-2">
-                      <div className="grid h-[320px] min-w-[620px] grid-cols-5 items-end gap-4 sm:h-[400px] sm:gap-6">
+                      <div className="grid h-[320px] min-w-[620px] grid-cols-5 items-end gap-4 sm:h-[430px] sm:gap-6 2xl:h-[520px]">
                         {comparisonData.slice(0, 5).map((item) => {
                           const attainment = percentage(item.venda, item.meta);
                           const fillHeight = Math.min(attainment, 100);
@@ -991,7 +991,7 @@ export default function App() {
                     </div>
                  </div>
 
-                 <div className="bg-white p-5 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 flex flex-col items-center justify-center space-y-6 sm:space-y-8">
+                 <div className="bg-white p-5 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 flex flex-col items-center justify-center space-y-6 sm:space-y-8 xl:col-span-4 2xl:col-span-3">
                     <h3 className="font-black text-gray-900 uppercase tracking-tighter self-start flex items-center gap-3">
                       <PieChartIcon className="text-indigo-600" size={24} /> Market Share por {generalChartLevel}
                     </h3>
@@ -1151,8 +1151,8 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-8"
             >
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 sm:gap-8">
-                <div className="bg-indigo-600 p-5 sm:p-8 rounded-3xl lg:rounded-[40px] text-white space-y-6">
+              <div className="grid grid-cols-1 gap-5 sm:gap-8 xl:grid-cols-12">
+                <div className="bg-indigo-600 p-5 sm:p-8 rounded-3xl lg:rounded-[40px] text-white space-y-6 xl:col-span-3">
                    <div>
                      <h3 className="text-2xl font-black uppercase tracking-tighter">Presença e Agendadas</h3>
                      <p className="text-xs font-bold opacity-70 uppercase">Atividade semanal da equipe</p>
@@ -1191,7 +1191,7 @@ export default function App() {
                    </div>
                 </div>
 
-                <div className="lg:col-span-3 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden xl:col-span-9">
                   <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
                     <ArrowUpRight className="text-indigo-600" size={24} /> Presença e Agendadas por Mês/Semana
                   </h3>
@@ -1273,8 +1273,8 @@ export default function App() {
                 })}
               </div>
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-                <div className="lg:col-span-3 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                <div className="bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden xl:col-span-8 2xl:col-span-9">
                   <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
                     <BarChart3 className="text-indigo-600" size={24} /> Plantões x Faltas por Diretoria
                   </h3>
@@ -1294,7 +1294,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="lg:col-span-2 bg-black p-6 sm:p-8 rounded-3xl lg:rounded-[40px] text-white">
+                <div className="bg-black p-6 sm:p-8 rounded-3xl lg:rounded-[40px] text-white xl:col-span-4 2xl:col-span-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-200">Leitura operacional</p>
                   <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter">Foco em escala e faltas</h3>
                   <div className="mt-8 space-y-4">
@@ -1488,7 +1488,9 @@ export default function App() {
       </nav>
 
       {/* Floating Bottom Info (Internal Mobile Friendly Footer) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-200 py-3 px-6 z-40 hidden md:flex items-center justify-between">
+      <div className={`fixed bottom-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-200 py-3 px-6 z-40 hidden items-center justify-between transition-all duration-300 md:flex ${
+        isSidebarCollapsed ? 'lg:left-20' : 'lg:left-44'
+      } left-0`}>
          <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
