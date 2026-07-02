@@ -48,7 +48,7 @@ import { formatCurrency, formatMonthYear } from './data';
 import type { PlantaoEntry, SalesEntry } from './googleSheetsPublic';
 import { loadDashboardData } from './dataClient';
 
-type TabType = 'geral' | 'metas' | 'visitas' | 'vendas' | 'plantoes' | 'produtos';
+type TabType = 'geral' | 'metas' | 'visitas' | 'vendas' | 'perfil' | 'plantoes' | 'produtos';
 type MetaViewType = 'gerente' | 'diretoria';
 
 const TAB_LABELS: Record<TabType, string> = {
@@ -56,6 +56,7 @@ const TAB_LABELS: Record<TabType, string> = {
   metas: 'Metas',
   visitas: 'Presença',
   vendas: 'Vendas',
+  perfil: 'Perfil',
   plantoes: 'Plantões',
   produtos: 'Produtos',
 };
@@ -65,11 +66,12 @@ const TAB_ICONS: Record<TabType, typeof LayoutDashboard> = {
   metas: Target,
   visitas: Users,
   vendas: BarChart3,
+  perfil: UserCheck,
   plantoes: Calendar,
   produtos: Building2,
 };
 
-const MAIN_TABS: TabType[] = ['geral', 'metas', 'visitas', 'vendas', 'plantoes', 'produtos'];
+const MAIN_TABS: TabType[] = ['geral', 'metas', 'visitas', 'vendas', 'perfil', 'plantoes', 'produtos'];
 
 const CARD_STYLES = {
   indigo: {
@@ -372,6 +374,7 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedDirector, setSelectedDirector] = useState<string>('Todos');
   const [selectedMonth, setSelectedMonth] = useState<string>('Todos');
+  const [selectedBroker, setSelectedBroker] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [metaView, setMetaView] = useState<MetaViewType>('gerente');
 
@@ -725,6 +728,108 @@ export default function App() {
         })),
     [plantaoRankings.diretorias],
   );
+
+  const profileSalesBase = useMemo(
+    () =>
+      salesEntries.filter((entry) => {
+        const matchDirector =
+          selectedDirector === 'Todos' || entry.diretor === selectedDirector;
+        const matchMonth =
+          selectedMonth === 'Todos' || entry.mesVigente === selectedMonth;
+        return matchDirector && matchMonth && entry.corretor;
+      }),
+    [salesEntries, selectedDirector, selectedMonth],
+  );
+
+  const profilePlantaoBase = useMemo(
+    () =>
+      plantaoEntries.filter((entry) => {
+        const matchDirector =
+          selectedDirector === 'Todos' || entry.diretor === selectedDirector;
+        const matchMonth =
+          selectedMonth === 'Todos' || entry.mesVigente === selectedMonth;
+        return matchDirector && matchMonth && entry.corretor;
+      }),
+    [plantaoEntries, selectedDirector, selectedMonth],
+  );
+
+  const brokerOptions = useMemo(() => {
+    const brokers = new Set<string>();
+    profileSalesBase.forEach((entry) => brokers.add(entry.corretor));
+    profilePlantaoBase.forEach((entry) => brokers.add(entry.corretor));
+    return [...brokers].filter(Boolean).sort();
+  }, [profileSalesBase, profilePlantaoBase]);
+
+  useEffect(() => {
+    if (!brokerOptions.length) {
+      setSelectedBroker('');
+      return;
+    }
+
+    if (!selectedBroker || !brokerOptions.includes(selectedBroker)) {
+      setSelectedBroker(brokerOptions[0]);
+    }
+  }, [brokerOptions, selectedBroker]);
+
+  const brokerProfile = useMemo(() => {
+    const sales = profileSalesBase.filter((entry) => entry.corretor === selectedBroker);
+    const plantoes = profilePlantaoBase.filter((entry) => entry.corretor === selectedBroker);
+    const totalVgv = sales.reduce((acc, entry) => acc + entry.vgv, 0);
+    const totalVendas = sales.length;
+    const ticketMedio = totalVendas ? totalVgv / totalVendas : 0;
+    const totalPlantoes = plantoes.reduce((acc, entry) => acc + entry.plantoes, 0);
+    const totalFaltas = plantoes.reduce((acc, entry) => acc + entry.faltas, 0);
+    const taxaFalta = percentage(totalFaltas, totalPlantoes + totalFaltas);
+    const context = sales[0] ?? plantoes[0];
+
+    const aggregateSales = (
+      selector: (entry: SalesEntry) => string,
+      detailSelector?: (entry: SalesEntry) => string,
+    ) => {
+      const ranking = new Map<string, RankingItem>();
+      sales.forEach((entry) => {
+        const name = selector(entry);
+        if (!name) return;
+        const current = ranking.get(name) ?? {
+          name,
+          value: 0,
+          detail: detailSelector?.(entry),
+        };
+        current.value += entry.vgv;
+        ranking.set(name, current);
+      });
+      return [...ranking.values()].sort((a, b) => b.value - a.value).slice(0, 5);
+    };
+
+    const monthly = new Map<string, { mes: string; vgv: number; vendas: number }>();
+    sales.forEach((entry) => {
+      const current = monthly.get(entry.mesVigente) ?? {
+        mes: formatMonthYear(entry.mesVigente).slice(0, 3),
+        vgv: 0,
+        vendas: 0,
+      };
+      current.vgv += entry.vgv;
+      current.vendas += 1;
+      monthly.set(entry.mesVigente, current);
+    });
+
+    return {
+      corretor: selectedBroker,
+      gerente: context?.gerente ?? '-',
+      diretor: context?.diretor ?? '-',
+      totalVgv,
+      totalVendas,
+      ticketMedio,
+      totalPlantoes,
+      totalFaltas,
+      taxaFalta,
+      produtos: aggregateSales((entry) => entry.empreendimento, (entry) => entry.incorporador),
+      incorporadores: aggregateSales((entry) => entry.incorporador),
+      monthlyData: [...monthly.entries()]
+        .sort(([monthA], [monthB]) => monthA.localeCompare(monthB))
+        .map(([, value]) => value),
+    };
+  }, [profileSalesBase, profilePlantaoBase, selectedBroker]);
 
   const COLORS = ['#eb194b', '#000000', '#ff9169', '#46dcaa', '#91beff', '#ffbe55', '#55e1e6'];
 
@@ -1214,6 +1319,144 @@ export default function App() {
             </motion.div>
           )}
 
+          {activeTab === 'perfil' && (
+            <motion.div
+              key="perfil"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6 sm:space-y-8"
+            >
+              <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 lg:rounded-[40px]">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-500">Perfil individual</p>
+                    <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter text-gray-900">
+                      Perfil do Corretor
+                    </h3>
+                    <p className="mt-2 max-w-3xl text-sm font-medium text-gray-500">
+                      Visão individual com VGV, ticket médio, produtos vendidos e indicadores de escala.
+                    </p>
+                  </div>
+                  <div className="w-full lg:w-[360px]">
+                    <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-gray-400">
+                      Selecionar corretor
+                    </label>
+                    <select
+                      value={selectedBroker}
+                      onChange={(event) => setSelectedBroker(event.target.value)}
+                      className="w-full rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm font-black uppercase outline-none transition focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {brokerOptions.length ? (
+                        brokerOptions.map((broker) => (
+                          <option key={broker} value={broker}>
+                            {broker}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">Nenhum corretor encontrado</option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {selectedBroker ? (
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {[
+                      { label: 'VGV Intermediado', value: formatCurrency(brokerProfile.totalVgv), icon: DollarSign, color: 'indigo' },
+                      { label: 'Vendas', value: brokerProfile.totalVendas.toLocaleString(), icon: BarChart3, color: 'blue' },
+                      { label: 'Ticket Médio', value: formatCurrency(brokerProfile.ticketMedio), icon: Target, color: 'emerald' },
+                      { label: 'Taxa de Falta', value: `${brokerProfile.taxaFalta.toFixed(1)}%`, icon: UserX, color: 'orange' },
+                    ].map((card) => {
+                      const Icon = card.icon;
+                      const style = CARD_STYLES[card.color as keyof typeof CARD_STYLES];
+                      return (
+                        <div key={card.label} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{card.label}</p>
+                              <p className="mt-2 text-2xl font-black text-gray-900">{card.value}</p>
+                            </div>
+                            <div className={`rounded-2xl p-3 ${style.icon}`}>
+                              <Icon size={22} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 xl:col-span-4 lg:rounded-[40px]">
+                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Corretor</p>
+                      <h3 className="mt-2 break-words text-3xl font-black uppercase tracking-tighter text-gray-900">
+                        {brokerProfile.corretor}
+                      </h3>
+                      <div className="mt-6 space-y-3">
+                        <div className="rounded-2xl bg-gray-50 p-4">
+                          <span className="text-[10px] font-black uppercase text-gray-400">Gerente</span>
+                          <p className="mt-1 text-sm font-black text-gray-900">{brokerProfile.gerente}</p>
+                        </div>
+                        <div className="rounded-2xl bg-gray-50 p-4">
+                          <span className="text-[10px] font-black uppercase text-gray-400">Diretoria</span>
+                          <p className="mt-1 text-sm font-black text-gray-900">{brokerProfile.diretor}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="rounded-2xl bg-red-50 p-4">
+                            <span className="text-[10px] font-black uppercase text-red-500">Plantões</span>
+                            <p className="mt-1 text-xl font-black text-gray-900">{brokerProfile.totalPlantoes}</p>
+                          </div>
+                          <div className="rounded-2xl bg-gray-900 p-4 text-white">
+                            <span className="text-[10px] font-black uppercase text-white/50">Faltas</span>
+                            <p className="mt-1 text-xl font-black">{brokerProfile.totalFaltas}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 xl:col-span-8 lg:rounded-[40px]">
+                      <h3 className="mb-8 flex items-center gap-3 font-black uppercase tracking-tighter text-gray-900">
+                        <BarChart3 className="text-indigo-600" size={24} /> Evolução mensal de VGV
+                      </h3>
+                      <div className="h-[320px] min-w-[520px] overflow-x-auto">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={brokerProfile.monthlyData} barCategoryGap="30%">
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                            <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 800, fill: '#9CA3AF' }} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} tickFormatter={(value) => `R$${Number(value) / 1000000}M`} />
+                            <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                            <Bar dataKey="vgv" name="VGV" fill="#eb194b" radius={[12, 12, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                    <RankingSection
+                      title="Produtos vendidos"
+                      subtitle="Top produtos/empreendimentos vinculados ao corretor."
+                      items={brokerProfile.produtos}
+                    />
+                    <RankingSection
+                      title="Incorporadores"
+                      subtitle="Top incorporadores vinculados às vendas do corretor."
+                      items={brokerProfile.incorporadores}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+                  <p className="text-sm font-bold text-gray-500">
+                    Nenhum corretor encontrado para os filtros selecionados.
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
           {activeTab === 'plantoes' && (
             <motion.div
               key="plantoes"
@@ -1465,7 +1708,7 @@ export default function App() {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] backdrop-blur-md lg:hidden">
-        <div className="mx-auto grid max-w-xl grid-cols-6 gap-1">
+        <div className="mx-auto flex max-w-xl gap-1 overflow-x-auto pb-1">
           {MAIN_TABS.map((tab) => {
             const Icon = TAB_ICONS[tab];
             return (
@@ -1473,7 +1716,7 @@ export default function App() {
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-black uppercase tracking-tight transition-colors ${
+              className={`flex min-w-[72px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[9px] font-black uppercase tracking-tight transition-colors ${
                 activeTab === tab
                   ? 'bg-indigo-600 text-white'
                   : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'
