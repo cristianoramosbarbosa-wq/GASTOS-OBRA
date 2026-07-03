@@ -48,7 +48,7 @@ import { formatCurrency, formatMonthYear } from './data';
 import type { BrokerProfileEntry, PlantaoEntry, SalesEntry } from './googleSheetsPublic';
 import { loadDashboardData } from './dataClient';
 
-type TabType = 'geral' | 'metas' | 'visitas' | 'vendas' | 'perfil' | 'plantoes' | 'produtos';
+type TabType = 'geral' | 'metas' | 'visitas' | 'vendas' | 'perfil' | 'vendasPerfil' | 'plantoes' | 'produtos';
 type MetaViewType = 'gerente' | 'diretoria';
 
 const TAB_LABELS: Record<TabType, string> = {
@@ -57,6 +57,7 @@ const TAB_LABELS: Record<TabType, string> = {
   visitas: 'Presença',
   vendas: 'Vendas',
   perfil: 'Perfil',
+  vendasPerfil: 'Vendas Perfil',
   plantoes: 'Plantões',
   produtos: 'Produtos',
 };
@@ -67,11 +68,12 @@ const TAB_ICONS: Record<TabType, typeof LayoutDashboard> = {
   visitas: Users,
   vendas: BarChart3,
   perfil: UserCheck,
+  vendasPerfil: PieChartIcon,
   plantoes: Calendar,
   produtos: Building2,
 };
 
-const MAIN_TABS: TabType[] = ['geral', 'metas', 'visitas', 'vendas', 'perfil', 'plantoes', 'produtos'];
+const MAIN_TABS: TabType[] = ['geral', 'metas', 'visitas', 'vendas', 'perfil', 'vendasPerfil', 'plantoes', 'produtos'];
 
 const CARD_STYLES = {
   indigo: {
@@ -94,6 +96,13 @@ const CARD_STYLES = {
 
 const percentage = (value: number, total: number) =>
   total > 0 ? (value / total) * 100 : 0;
+
+const formatSex = (value: string) => {
+  const normalized = value.trim().toUpperCase();
+  if (normalized === 'M') return 'Masculino';
+  if (normalized === 'F') return 'Feminino';
+  return normalized || 'Não informado';
+};
 
 interface RankingItem {
   name: string;
@@ -737,6 +746,7 @@ export default function App() {
         selectedDirector === 'Todos' || entry.diretor === selectedDirector;
       const matchSearch =
         entry.corretor.toLowerCase().includes(search) ||
+        entry.nome.toLowerCase().includes(search) ||
         entry.gerente.toLowerCase().includes(search) ||
         entry.diretor.toLowerCase().includes(search) ||
         entry.creciStatus.toLowerCase().includes(search) ||
@@ -794,7 +804,7 @@ export default function App() {
       idadeMedia: ages.length ? ages.reduce((acc, age) => acc + age, 0) / ages.length : 0,
       faixaPredominante:
         [...ageRanges.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Não informado',
-      homens: null as number | null,
+      sexo: countBy((entry) => formatSex(entry.sexo)),
       creciRegularPct: percentage(regularCreci, filteredBrokerProfiles.length),
       creciStatus,
       creciTipo: countBy((entry) => entry.creciTipo),
@@ -806,6 +816,91 @@ export default function App() {
       })),
     };
   }, [filteredBrokerProfiles]);
+
+  const salesByProfileStats = useMemo(() => {
+    const profileByBroker = new Map(
+      brokerProfileEntries.map((entry) => [entry.corretor, entry]),
+    );
+    const search = searchTerm.toLowerCase();
+    const eligibleSales = salesEntries
+      .map((sale) => ({ sale, profile: profileByBroker.get(sale.corretor) }))
+      .filter(({ sale, profile }) => {
+        if (!profile) return false;
+        const matchDirector =
+          selectedDirector === 'Todos' || sale.diretor === selectedDirector;
+        const matchMonth =
+          selectedMonth === 'Todos' || sale.mesVigente === selectedMonth;
+        const matchSearch =
+          sale.corretor.toLowerCase().includes(search) ||
+          profile.nome.toLowerCase().includes(search) ||
+          sale.gerente.toLowerCase().includes(search) ||
+          sale.diretor.toLowerCase().includes(search) ||
+          sale.empreendimento.toLowerCase().includes(search) ||
+          sale.incorporador.toLowerCase().includes(search) ||
+          profile.creciStatus.toLowerCase().includes(search) ||
+          profile.creciTipo.toLowerCase().includes(search) ||
+          profile.sexo.toLowerCase().includes(search);
+        return matchDirector && matchMonth && matchSearch;
+      });
+
+    const calculateAge = (dateValue: string) => {
+      if (!dateValue) return null;
+      const birthDate = new Date(`${dateValue}T00:00:00`);
+      if (Number.isNaN(birthDate.getTime())) return null;
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age -= 1;
+      return age >= 0 && age < 100 ? age : null;
+    };
+
+    const ageRange = (age: number | null) => {
+      if (age === null) return 'Sem nascimento';
+      if (age <= 25) return 'Até 25';
+      if (age <= 35) return '26 a 35';
+      if (age <= 45) return '36 a 45';
+      if (age <= 55) return '46 a 55';
+      return '56+';
+    };
+
+    const aggregate = (
+      selector: (item: { sale: SalesEntry; profile: BrokerProfileEntry }) => string,
+      detailSelector?: (item: { sale: SalesEntry; profile: BrokerProfileEntry }) => string,
+    ) => {
+      const ranking = new Map<string, RankingItem & { count: number }>();
+      eligibleSales.forEach(({ sale, profile }) => {
+        if (!profile) return;
+        const name = selector({ sale, profile }) || 'Não informado';
+        const current = ranking.get(name) ?? {
+          name,
+          value: 0,
+          detail: detailSelector?.({ sale, profile }),
+          count: 0,
+        };
+        current.value += sale.vgv;
+        current.count += 1;
+        ranking.set(name, current);
+      });
+      return [...ranking.values()]
+        .sort((a, b) => b.value - a.value || b.count - a.count)
+        .slice(0, 10);
+    };
+
+    const totalVgv = eligibleSales.reduce((acc, item) => acc + item.sale.vgv, 0);
+
+    return {
+      totalVgv,
+      totalVendas: eligibleSales.length,
+      corretoresComVenda: new Set(eligibleSales.map((item) => item.sale.corretor)).size,
+      ticketMedio: eligibleSales.length ? totalVgv / eligibleSales.length : 0,
+      porSexo: aggregate(({ profile }) => formatSex(profile.sexo)),
+      porFaixaEtaria: aggregate(({ profile }) => ageRange(calculateAge(profile.dataNascimento))),
+      porCreciStatus: aggregate(({ profile }) => profile.creciStatus),
+      porCreciTipo: aggregate(({ profile }) => profile.creciTipo),
+      porDiretoria: aggregate(({ sale }) => sale.diretor),
+      porGerente: aggregate(({ sale }) => sale.gerente, ({ sale }) => sale.diretor),
+    };
+  }, [brokerProfileEntries, salesEntries, selectedDirector, selectedMonth, searchTerm]);
 
   const COLORS = ['#eb194b', '#000000', '#ff9169', '#46dcaa', '#91beff', '#ffbe55', '#55e1e6'];
 
@@ -1319,7 +1414,7 @@ export default function App() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 {[
                   { label: 'Corretores credenciados', value: brokerProfileStats.total.toLocaleString(), icon: Users, color: 'indigo' },
-                  { label: 'Homens', value: 'Não informado', icon: UserCheck, color: 'blue' },
+                  { label: 'Sexo predominante', value: brokerProfileStats.sexo[0]?.name ?? 'N/D', icon: UserCheck, color: 'blue' },
                   { label: 'Idade média', value: brokerProfileStats.idadeMedia ? `${brokerProfileStats.idadeMedia.toFixed(1)} anos` : 'N/D', icon: Calendar, color: 'emerald' },
                   { label: 'Faixa predominante', value: brokerProfileStats.faixaPredominante, icon: Target, color: 'orange' },
                   { label: 'CRECI regular', value: `${brokerProfileStats.creciRegularPct.toFixed(1)}%`, icon: Trophy, color: 'emerald' },
@@ -1392,8 +1487,9 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
                 {[
+                  { title: 'Sexo', items: brokerProfileStats.sexo },
                   { title: 'Tipo de CRECI', items: brokerProfileStats.creciTipo },
                   { title: 'Diretorias', items: brokerProfileStats.diretorias },
                   { title: 'Gerentes', items: brokerProfileStats.gerentes },
@@ -1638,6 +1734,84 @@ export default function App() {
                   title="Ranking de Diretorias"
                   subtitle="VGV acumulado de todos os gerentes e corretores da diretoria."
                   items={salesRankings.diretorias}
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'vendasPerfil' && (
+            <motion.div
+              key="vendasPerfil"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 lg:rounded-[40px]">
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-500">Vendas por perfil</p>
+                <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter text-gray-900">
+                  Análise Comercial por Perfil do Corretor
+                </h3>
+                <p className="mt-2 max-w-4xl text-sm font-medium text-gray-500">
+                  Cruza as vendas com a aba Perfil corretor, considerando somente corretores credenciados. Respeita os filtros de diretoria, mês e busca.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                  { label: 'VGV analisado', value: formatCurrency(salesByProfileStats.totalVgv), icon: DollarSign, color: 'indigo' },
+                  { label: 'Vendas analisadas', value: salesByProfileStats.totalVendas.toLocaleString(), icon: BarChart3, color: 'blue' },
+                  { label: 'Corretores com venda', value: salesByProfileStats.corretoresComVenda.toLocaleString(), icon: Users, color: 'emerald' },
+                  { label: 'Ticket médio', value: formatCurrency(salesByProfileStats.ticketMedio), icon: Target, color: 'orange' },
+                ].map((card) => {
+                  const Icon = card.icon;
+                  const style = CARD_STYLES[card.color as keyof typeof CARD_STYLES];
+                  return (
+                    <div key={card.label} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{card.label}</p>
+                          <p className="mt-2 text-xl font-black text-gray-900">{card.value}</p>
+                        </div>
+                        <div className={`rounded-2xl p-3 ${style.icon}`}>
+                          <Icon size={22} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <RankingSection
+                  title="VGV por Sexo"
+                  subtitle="Participação de VGV por sexo informado no cadastro."
+                  items={salesByProfileStats.porSexo}
+                />
+                <RankingSection
+                  title="VGV por Faixa Etária"
+                  subtitle="VGV intermediado por faixa de idade calculada pela data de nascimento."
+                  items={salesByProfileStats.porFaixaEtaria}
+                />
+                <RankingSection
+                  title="VGV por Status CRECI"
+                  subtitle="VGV por regularidade do CRECI."
+                  items={salesByProfileStats.porCreciStatus}
+                />
+                <RankingSection
+                  title="VGV por Tipo de CRECI"
+                  subtitle="VGV por tipo de CRECI cadastrado."
+                  items={salesByProfileStats.porCreciTipo}
+                />
+                <RankingSection
+                  title="VGV por Diretoria"
+                  subtitle="Leitura de perfil consolidada por diretoria."
+                  items={salesByProfileStats.porDiretoria}
+                />
+                <RankingSection
+                  title="VGV por Gerente"
+                  subtitle="Leitura de perfil consolidada por gerente."
+                  items={salesByProfileStats.porGerente}
                 />
               </div>
             </motion.div>

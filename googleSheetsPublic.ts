@@ -45,6 +45,8 @@ export interface BrokerProfileEntry {
   cargo: string;
   status: string;
   corretor: string;
+  nome: string;
+  sexo: string;
   gerente: string;
   diretor: string;
   creciStatus: string;
@@ -332,6 +334,8 @@ export async function loadPerformanceData(signal?: AbortSignal) {
       cargo,
       status,
       corretor,
+      nome: normalizePerson(getValue(row, ['Aut_Nome'])),
+      sexo: normalizePerson(getValue(row, ['Aut_Sexo', 'Sexo'])),
       gerente: normalizePerson(getValue(row, ['Aut_SuperintendenteApelido'])),
       diretor: normalizePerson(getValue(row, ['Aut_DiretorApelido'])),
       creciStatus: normalizePerson(getValue(row, ['Aut_CreciStatus'])),
