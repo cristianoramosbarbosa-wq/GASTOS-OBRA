@@ -45,7 +45,7 @@ import {
 } from 'recharts';
 import type { PerformanceRecord } from './data';
 import { formatCurrency, formatMonthYear } from './data';
-import type { PlantaoEntry, SalesEntry } from './googleSheetsPublic';
+import type { BrokerProfileEntry, PlantaoEntry, SalesEntry } from './googleSheetsPublic';
 import { loadDashboardData } from './dataClient';
 
 type TabType = 'geral' | 'metas' | 'visitas' | 'vendas' | 'perfil' | 'plantoes' | 'produtos';
@@ -367,6 +367,7 @@ export default function App() {
   const [data, setData] = useState<PerformanceRecord[]>([]);
   const [salesEntries, setSalesEntries] = useState<SalesEntry[]>([]);
   const [plantaoEntries, setPlantaoEntries] = useState<PlantaoEntry[]>([]);
+  const [brokerProfileEntries, setBrokerProfileEntries] = useState<BrokerProfileEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
@@ -374,7 +375,6 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedDirector, setSelectedDirector] = useState<string>('Todos');
   const [selectedMonth, setSelectedMonth] = useState<string>('Todos');
-  const [selectedBroker, setSelectedBroker] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [metaView, setMetaView] = useState<MetaViewType>('gerente');
 
@@ -398,10 +398,11 @@ export default function App() {
     setLoadError('');
 
     loadDashboardData(controller.signal)
-      .then(({ records, salesEntries: loadedSales, plantaoEntries: loadedPlantoes = [] }) => {
+      .then(({ records, salesEntries: loadedSales, plantaoEntries: loadedPlantoes = [], brokerProfileEntries: loadedProfiles = [] }) => {
         setData(records);
         setSalesEntries(loadedSales);
         setPlantaoEntries(loadedPlantoes);
+        setBrokerProfileEntries(loadedProfiles);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -729,107 +730,82 @@ export default function App() {
     [plantaoRankings.diretorias],
   );
 
-  const profileSalesBase = useMemo(
-    () =>
-      salesEntries.filter((entry) => {
-        const matchDirector =
-          selectedDirector === 'Todos' || entry.diretor === selectedDirector;
-        const matchMonth =
-          selectedMonth === 'Todos' || entry.mesVigente === selectedMonth;
-        return matchDirector && matchMonth && entry.corretor;
-      }),
-    [salesEntries, selectedDirector, selectedMonth],
-  );
+  const filteredBrokerProfiles = useMemo(() => {
+    const search = searchTerm.toLowerCase();
+    return brokerProfileEntries.filter((entry) => {
+      const matchDirector =
+        selectedDirector === 'Todos' || entry.diretor === selectedDirector;
+      const matchSearch =
+        entry.corretor.toLowerCase().includes(search) ||
+        entry.gerente.toLowerCase().includes(search) ||
+        entry.diretor.toLowerCase().includes(search) ||
+        entry.creciStatus.toLowerCase().includes(search) ||
+        entry.creciTipo.toLowerCase().includes(search);
+      return matchDirector && matchSearch;
+    });
+  }, [brokerProfileEntries, selectedDirector, searchTerm]);
 
-  const profilePlantaoBase = useMemo(
-    () =>
-      plantaoEntries.filter((entry) => {
-        const matchDirector =
-          selectedDirector === 'Todos' || entry.diretor === selectedDirector;
-        const matchMonth =
-          selectedMonth === 'Todos' || entry.mesVigente === selectedMonth;
-        return matchDirector && matchMonth && entry.corretor;
-      }),
-    [plantaoEntries, selectedDirector, selectedMonth],
-  );
-
-  const brokerOptions = useMemo(() => {
-    const brokers = new Set<string>();
-    profileSalesBase.forEach((entry) => brokers.add(entry.corretor));
-    profilePlantaoBase.forEach((entry) => brokers.add(entry.corretor));
-    return [...brokers].filter(Boolean).sort();
-  }, [profileSalesBase, profilePlantaoBase]);
-
-  useEffect(() => {
-    if (!brokerOptions.length) {
-      setSelectedBroker('');
-      return;
-    }
-
-    if (!selectedBroker || !brokerOptions.includes(selectedBroker)) {
-      setSelectedBroker(brokerOptions[0]);
-    }
-  }, [brokerOptions, selectedBroker]);
-
-  const brokerProfile = useMemo(() => {
-    const sales = profileSalesBase.filter((entry) => entry.corretor === selectedBroker);
-    const plantoes = profilePlantaoBase.filter((entry) => entry.corretor === selectedBroker);
-    const totalVgv = sales.reduce((acc, entry) => acc + entry.vgv, 0);
-    const totalVendas = sales.length;
-    const ticketMedio = totalVendas ? totalVgv / totalVendas : 0;
-    const totalPlantoes = plantoes.reduce((acc, entry) => acc + entry.plantoes, 0);
-    const totalFaltas = plantoes.reduce((acc, entry) => acc + entry.faltas, 0);
-    const taxaFalta = percentage(totalFaltas, totalPlantoes + totalFaltas);
-    const context = sales[0] ?? plantoes[0];
-
-    const aggregateSales = (
-      selector: (entry: SalesEntry) => string,
-      detailSelector?: (entry: SalesEntry) => string,
-    ) => {
-      const ranking = new Map<string, RankingItem>();
-      sales.forEach((entry) => {
-        const name = selector(entry);
-        if (!name) return;
-        const current = ranking.get(name) ?? {
-          name,
-          value: 0,
-          detail: detailSelector?.(entry),
-        };
-        current.value += entry.vgv;
-        ranking.set(name, current);
-      });
-      return [...ranking.values()].sort((a, b) => b.value - a.value).slice(0, 5);
+  const brokerProfileStats = useMemo(() => {
+    const calculateAge = (dateValue: string) => {
+      if (!dateValue) return null;
+      const birthDate = new Date(`${dateValue}T00:00:00`);
+      if (Number.isNaN(birthDate.getTime())) return null;
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age -= 1;
+      return age >= 0 && age < 100 ? age : null;
     };
 
-    const monthly = new Map<string, { mes: string; vgv: number; vendas: number }>();
-    sales.forEach((entry) => {
-      const current = monthly.get(entry.mesVigente) ?? {
-        mes: formatMonthYear(entry.mesVigente).slice(0, 3),
-        vgv: 0,
-        vendas: 0,
-      };
-      current.vgv += entry.vgv;
-      current.vendas += 1;
-      monthly.set(entry.mesVigente, current);
+    const ageRange = (age: number | null) => {
+      if (age === null) return 'Sem nascimento';
+      if (age <= 25) return 'Até 25';
+      if (age <= 35) return '26 a 35';
+      if (age <= 45) return '36 a 45';
+      if (age <= 55) return '46 a 55';
+      return '56+';
+    };
+
+    const countBy = (selector: (entry: BrokerProfileEntry) => string) => {
+      const map = new Map<string, number>();
+      filteredBrokerProfiles.forEach((entry) => {
+        const name = selector(entry) || 'Não informado';
+        map.set(name, (map.get(name) ?? 0) + 1);
+      });
+      return [...map.entries()]
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
+    };
+
+    const ages = filteredBrokerProfiles
+      .map((entry) => calculateAge(entry.dataNascimento))
+      .filter((age): age is number => age !== null);
+    const ageRanges = new Map<string, number>();
+    filteredBrokerProfiles.forEach((entry) => {
+      const range = ageRange(calculateAge(entry.dataNascimento));
+      ageRanges.set(range, (ageRanges.get(range) ?? 0) + 1);
     });
 
+    const creciStatus = countBy((entry) => entry.creciStatus);
+    const regularCreci = creciStatus.find((item) => item.name === 'REGULAR')?.value ?? 0;
+
     return {
-      corretor: selectedBroker,
-      gerente: context?.gerente ?? '-',
-      diretor: context?.diretor ?? '-',
-      totalVgv,
-      totalVendas,
-      ticketMedio,
-      totalPlantoes,
-      totalFaltas,
-      taxaFalta,
-      produtos: aggregateSales((entry) => entry.empreendimento, (entry) => entry.incorporador),
-      incorporadores: aggregateSales((entry) => entry.incorporador),
-      monthlyData: [...monthly.entries()]
-        .sort(([monthA], [monthB]) => monthA.localeCompare(monthB))
-        .map(([, value]) => value),
+      total: filteredBrokerProfiles.length,
+      idadeMedia: ages.length ? ages.reduce((acc, age) => acc + age, 0) / ages.length : 0,
+      faixaPredominante:
+        [...ageRanges.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Não informado',
+      homens: null as number | null,
+      creciRegularPct: percentage(regularCreci, filteredBrokerProfiles.length),
+      creciStatus,
+      creciTipo: countBy((entry) => entry.creciTipo),
+      diretorias: countBy((entry) => entry.diretor).slice(0, 10),
+      gerentes: countBy((entry) => entry.gerente).slice(0, 10),
+      faixasEtarias: ['Até 25', '26 a 35', '36 a 45', '46 a 55', '56+', 'Sem nascimento'].map((name) => ({
+        name,
+        value: ageRanges.get(name) ?? 0,
+      })),
     };
-  }, [profileSalesBase, profilePlantaoBase, selectedBroker]);
+  }, [filteredBrokerProfiles]);
 
   const COLORS = ['#eb194b', '#000000', '#ff9169', '#46dcaa', '#91beff', '#ffbe55', '#55e1e6'];
 
@@ -853,6 +829,7 @@ export default function App() {
     setData([]);
     setSalesEntries([]);
     setPlantaoEntries([]);
+    setBrokerProfileEntries([]);
     setAuthStatus('unauthenticated');
   };
 
@@ -1328,129 +1305,123 @@ export default function App() {
               className="space-y-6 sm:space-y-8"
             >
               <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 lg:rounded-[40px]">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-500">Perfil individual</p>
-                    <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter text-gray-900">
-                      Perfil do Corretor
-                    </h3>
-                    <p className="mt-2 max-w-3xl text-sm font-medium text-gray-500">
-                      Visão individual com VGV, ticket médio, produtos vendidos e indicadores de escala.
-                    </p>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-500">Perfil cadastral</p>
+                  <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter text-gray-900">
+                    Perfil dos Corretores Credenciados
+                  </h3>
+                  <p className="mt-2 max-w-4xl text-sm font-medium text-gray-500">
+                    Considera somente registros com cargo Corretor e remove Candidato inativo e Descredenciado. A base não possui coluna oficial de sexo/gênero, então essa métrica não é inferida por nome.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                {[
+                  { label: 'Corretores credenciados', value: brokerProfileStats.total.toLocaleString(), icon: Users, color: 'indigo' },
+                  { label: 'Homens', value: 'Não informado', icon: UserCheck, color: 'blue' },
+                  { label: 'Idade média', value: brokerProfileStats.idadeMedia ? `${brokerProfileStats.idadeMedia.toFixed(1)} anos` : 'N/D', icon: Calendar, color: 'emerald' },
+                  { label: 'Faixa predominante', value: brokerProfileStats.faixaPredominante, icon: Target, color: 'orange' },
+                  { label: 'CRECI regular', value: `${brokerProfileStats.creciRegularPct.toFixed(1)}%`, icon: Trophy, color: 'emerald' },
+                ].map((card) => {
+                  const Icon = card.icon;
+                  const style = CARD_STYLES[card.color as keyof typeof CARD_STYLES];
+                  return (
+                    <div key={card.label} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{card.label}</p>
+                          <p className="mt-2 text-xl font-black text-gray-900">{card.value}</p>
+                        </div>
+                        <div className={`rounded-2xl p-3 ${style.icon}`}>
+                          <Icon size={22} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 lg:rounded-[40px]">
+                  <h3 className="mb-8 flex items-center gap-3 font-black uppercase tracking-tighter text-gray-900">
+                    <BarChart3 className="text-indigo-600" size={24} /> Faixa etária
+                  </h3>
+                  <div className="h-[320px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={brokerProfileStats.faixasEtarias} barCategoryGap="28%">
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#9CA3AF' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} allowDecimals={false} />
+                        <Tooltip />
+                        <Bar dataKey="value" name="Corretores" fill="#eb194b" radius={[12, 12, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
-                  <div className="w-full lg:w-[360px]">
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-gray-400">
-                      Selecionar corretor
-                    </label>
-                    <select
-                      value={selectedBroker}
-                      onChange={(event) => setSelectedBroker(event.target.value)}
-                      className="w-full rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm font-black uppercase outline-none transition focus:ring-2 focus:ring-indigo-500"
-                    >
-                      {brokerOptions.length ? (
-                        brokerOptions.map((broker) => (
-                          <option key={broker} value={broker}>
-                            {broker}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="">Nenhum corretor encontrado</option>
-                      )}
-                    </select>
+                </div>
+
+                <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 lg:rounded-[40px]">
+                  <h3 className="mb-8 flex items-center gap-3 font-black uppercase tracking-tighter text-gray-900">
+                    <PieChartIcon className="text-indigo-600" size={24} /> Status CRECI
+                  </h3>
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div className="h-[260px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={brokerProfileStats.creciStatus} dataKey="value" nameKey="name" innerRadius={65} outerRadius={95} paddingAngle={6}>
+                            {brokerProfileStats.creciStatus.map((item, index) => (
+                              <Cell key={item.name} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="space-y-3">
+                      {brokerProfileStats.creciStatus.map((item, index) => (
+                        <div key={item.name} className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></span>
+                            <span className="text-xs font-black uppercase text-gray-700">{item.name}</span>
+                          </div>
+                          <span className="text-sm font-black text-gray-900">{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {selectedBroker ? (
-                <>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    {[
-                      { label: 'VGV Intermediado', value: formatCurrency(brokerProfile.totalVgv), icon: DollarSign, color: 'indigo' },
-                      { label: 'Vendas', value: brokerProfile.totalVendas.toLocaleString(), icon: BarChart3, color: 'blue' },
-                      { label: 'Ticket Médio', value: formatCurrency(brokerProfile.ticketMedio), icon: Target, color: 'emerald' },
-                      { label: 'Taxa de Falta', value: `${brokerProfile.taxaFalta.toFixed(1)}%`, icon: UserX, color: 'orange' },
-                    ].map((card) => {
-                      const Icon = card.icon;
-                      const style = CARD_STYLES[card.color as keyof typeof CARD_STYLES];
-                      return (
-                        <div key={card.label} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{card.label}</p>
-                              <p className="mt-2 text-2xl font-black text-gray-900">{card.value}</p>
-                            </div>
-                            <div className={`rounded-2xl p-3 ${style.icon}`}>
-                              <Icon size={22} />
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+                {[
+                  { title: 'Tipo de CRECI', items: brokerProfileStats.creciTipo },
+                  { title: 'Diretorias', items: brokerProfileStats.diretorias },
+                  { title: 'Gerentes', items: brokerProfileStats.gerentes },
+                ].map((section) => (
+                  <div key={section.title} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 lg:rounded-[40px]">
+                    <h3 className="mb-5 font-black uppercase tracking-tighter text-gray-900">{section.title}</h3>
+                    <div className="space-y-3">
+                      {section.items.map((item, index) => (
+                        <div key={item.name} className="flex items-center gap-3">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-red-50 text-xs font-black text-red-600">{index + 1}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-black uppercase text-gray-900">{item.name}</p>
+                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                              <div className="h-full rounded-full bg-red-500" style={{ width: `${Math.min(percentage(item.value, brokerProfileStats.total), 100)}%` }}></div>
                             </div>
                           </div>
+                          <span className="text-sm font-black text-gray-900">{item.value}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-                    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 xl:col-span-4 lg:rounded-[40px]">
-                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Corretor</p>
-                      <h3 className="mt-2 break-words text-3xl font-black uppercase tracking-tighter text-gray-900">
-                        {brokerProfile.corretor}
-                      </h3>
-                      <div className="mt-6 space-y-3">
-                        <div className="rounded-2xl bg-gray-50 p-4">
-                          <span className="text-[10px] font-black uppercase text-gray-400">Gerente</span>
-                          <p className="mt-1 text-sm font-black text-gray-900">{brokerProfile.gerente}</p>
-                        </div>
-                        <div className="rounded-2xl bg-gray-50 p-4">
-                          <span className="text-[10px] font-black uppercase text-gray-400">Diretoria</span>
-                          <p className="mt-1 text-sm font-black text-gray-900">{brokerProfile.diretor}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="rounded-2xl bg-red-50 p-4">
-                            <span className="text-[10px] font-black uppercase text-red-500">Plantões</span>
-                            <p className="mt-1 text-xl font-black text-gray-900">{brokerProfile.totalPlantoes}</p>
-                          </div>
-                          <div className="rounded-2xl bg-gray-900 p-4 text-white">
-                            <span className="text-[10px] font-black uppercase text-white/50">Faltas</span>
-                            <p className="mt-1 text-xl font-black">{brokerProfile.totalFaltas}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 xl:col-span-8 lg:rounded-[40px]">
-                      <h3 className="mb-8 flex items-center gap-3 font-black uppercase tracking-tighter text-gray-900">
-                        <BarChart3 className="text-indigo-600" size={24} /> Evolução mensal de VGV
-                      </h3>
-                      <div className="h-[320px] min-w-[520px] overflow-x-auto">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={brokerProfile.monthlyData} barCategoryGap="30%">
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                            <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 800, fill: '#9CA3AF' }} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} tickFormatter={(value) => `R$${Number(value) / 1000000}M`} />
-                            <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                            <Bar dataKey="vgv" name="VGV" fill="#eb194b" radius={[12, 12, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
+                      ))}
                     </div>
                   </div>
+                ))}
+              </div>
 
-                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                    <RankingSection
-                      title="Produtos vendidos"
-                      subtitle="Top produtos/empreendimentos vinculados ao corretor."
-                      items={brokerProfile.produtos}
-                    />
-                    <RankingSection
-                      title="Incorporadores"
-                      subtitle="Top incorporadores vinculados às vendas do corretor."
-                      items={brokerProfile.incorporadores}
-                    />
-                  </div>
-                </>
-              ) : (
+              {!filteredBrokerProfiles.length && (
                 <div className="rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm">
                   <p className="text-sm font-bold text-gray-500">
-                    Nenhum corretor encontrado para os filtros selecionados.
+                    Nenhum corretor credenciado encontrado para os filtros selecionados.
                   </p>
                 </div>
               )}

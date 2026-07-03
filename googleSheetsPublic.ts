@@ -37,6 +37,22 @@ export interface PlantaoEntry {
   faltas: number;
 }
 
+export interface BrokerProfileEntry {
+  empresa: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  cargo: string;
+  status: string;
+  corretor: string;
+  gerente: string;
+  diretor: string;
+  creciStatus: string;
+  creciTipo: string;
+  dataNascimento: string;
+  dataInicioCargo: string;
+}
+
 const DEFAULT_SPREADSHEET_ID = '1RgXASkWpEhLL2cL8CSJZ9Aj7tv8aH9x0r8DrLrXmKi0';
 
 const normalizeText = (value: unknown) =>
@@ -91,7 +107,7 @@ const parseNumber = (value: unknown) => {
 
 const parseDate = (value: unknown) => {
   const raw = String(value ?? '').trim();
-  const gvizDate = raw.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})\)$/);
+  const gvizDate = raw.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})(?:,\d{1,2},\d{1,2},\d{1,2})?\)$/);
   if (gvizDate) {
     return { year: Number(gvizDate[1]), month: Number(gvizDate[2]) + 1, day: Number(gvizDate[3]) };
   }
@@ -104,6 +120,12 @@ const parseDate = (value: unknown) => {
     month: Number(date[2]),
     day: Number(date[1]),
   };
+};
+
+const dateKey = (value: unknown) => {
+  const date = parseDate(value);
+  if (!date) return '';
+  return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
 };
 
 const monthKey = (value: unknown) => {
@@ -182,17 +204,19 @@ const monthlyKey = (diretor: string, gerente: string, mes: string) =>
   `${diretor}|${gerente}|${mes}`;
 
 export async function loadPerformanceData(signal?: AbortSignal) {
-  const [goals, visits, sales, plantoes] = await Promise.all([
+  const [goals, visits, sales, plantoes, brokerProfiles] = await Promise.all([
     loadSheet('Meta Mensal', signal),
     loadSheet('Visitas', signal),
     loadSheet('Vendas', signal),
     loadSheet('Plantões', signal),
+    loadSheet('Perfil corretor', signal),
   ]);
 
   const records = new Map<string, PerformanceRecord>();
   const monthlyGoals = new Map<string, number>();
   const salesEntries: SalesEntry[] = [];
   const plantaoEntries: PlantaoEntry[] = [];
+  const brokerProfileEntries: BrokerProfileEntry[] = [];
   const managerDirector = new Map<string, string>();
 
   const ensureRecord = (diretor: string, gerente: string, mes: string, semana: number) => {
@@ -291,6 +315,32 @@ export async function loadPerformanceData(signal?: AbortSignal) {
     });
   });
 
+  brokerProfiles.forEach((row) => {
+    const cargo = normalizePerson(getValue(row, ['Aut_DesignacaoTecnica']));
+    const status = normalizePerson(getValue(row, ['Aut_Status']));
+    const corretor = normalizePerson(getValue(row, ['Aut_Apelido']));
+
+    if (cargo !== 'CORRETOR') return;
+    if (!corretor) return;
+    if (status === 'CANDIDATO INATIVO' || status === 'DESCREDENCIADO') return;
+
+    brokerProfileEntries.push({
+      empresa: normalizePerson(getValue(row, ['Aut_Empresa'])),
+      bairro: normalizePerson(getValue(row, ['Aut_Bairro'])),
+      cidade: normalizePerson(getValue(row, ['Aut_Cidade'])),
+      estado: normalizePerson(getValue(row, ['Aut_Estado'])),
+      cargo,
+      status,
+      corretor,
+      gerente: normalizePerson(getValue(row, ['Aut_SuperintendenteApelido'])),
+      diretor: normalizePerson(getValue(row, ['Aut_DiretorApelido'])),
+      creciStatus: normalizePerson(getValue(row, ['Aut_CreciStatus'])),
+      creciTipo: normalizePerson(getValue(row, ['Aut_CreciTipo'])),
+      dataNascimento: dateKey(getValue(row, ['Aut_DtNascimento'])),
+      dataInicioCargo: dateKey(getValue(row, ['Aut_UltimaDataInicioCargo'])),
+    });
+  });
+
   monthlyGoals.forEach((goal, key) => {
     const [diretor, gerente, mes] = key.split('|');
     const target =
@@ -316,5 +366,6 @@ export async function loadPerformanceData(signal?: AbortSignal) {
     ),
     salesEntries,
     plantaoEntries,
+    brokerProfileEntries,
   };
 }
