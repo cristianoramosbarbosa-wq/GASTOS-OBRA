@@ -51,8 +51,13 @@ export interface BrokerProfileEntry {
   diretor: string;
   creciStatus: string;
   creciTipo: string;
+  estadoCivil: string;
+  escolaridade: string;
+  indicacao: string;
   dataNascimento: string;
   dataInicioCargo: string;
+  dataCredenciamento: string;
+  dataDescredenciamento: string;
 }
 
 const DEFAULT_SPREADSHEET_ID = '1RgXASkWpEhLL2cL8CSJZ9Aj7tv8aH9x0r8DrLrXmKi0';
@@ -108,6 +113,15 @@ const parseNumber = (value: unknown) => {
 };
 
 const parseDate = (value: unknown) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const date = new Date(Math.round((value - 25569) * 86400 * 1000));
+    return {
+      year: date.getUTCFullYear(),
+      month: date.getUTCMonth() + 1,
+      day: date.getUTCDate(),
+    };
+  }
+
   const raw = String(value ?? '').trim();
   const gvizDate = raw.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})(?:,\d{1,2},\d{1,2},\d{1,2})?\)$/);
   if (gvizDate) {
@@ -318,30 +332,35 @@ export async function loadPerformanceData(signal?: AbortSignal) {
   });
 
   brokerProfiles.forEach((row) => {
-    const cargo = normalizePerson(getValue(row, ['Aut_DesignacaoTecnica']));
-    const status = normalizePerson(getValue(row, ['Aut_Status']));
-    const corretor = normalizePerson(getValue(row, ['Aut_Apelido']));
+    const cargo = normalizePerson(getValue(row, ['Aut_DesignacaoTecnica', 'Cargo']));
+    const status = normalizePerson(getValue(row, ['Aut_Status', 'STATUS', 'STATUS EMPRESA']));
+    const corretor = normalizePerson(getValue(row, ['Aut_Apelido', 'APELIDO']));
 
     if (cargo !== 'CORRETOR') return;
     if (!corretor) return;
     if (status === 'CANDIDATO INATIVO') return;
 
     brokerProfileEntries.push({
-      empresa: normalizePerson(getValue(row, ['Aut_Empresa'])),
-      bairro: normalizePerson(getValue(row, ['Aut_Bairro'])),
-      cidade: normalizePerson(getValue(row, ['Aut_Cidade'])),
-      estado: normalizePerson(getValue(row, ['Aut_Estado'])),
+      empresa: normalizePerson(getValue(row, ['Aut_Empresa', 'EMPRESA'])),
+      bairro: normalizePerson(getValue(row, ['Aut_Bairro', 'BAIRRO'])),
+      cidade: normalizePerson(getValue(row, ['Aut_Cidade', 'CIDADE'])),
+      estado: normalizePerson(getValue(row, ['Aut_Estado', 'ESTADO'])),
       cargo,
       status,
       corretor,
-      nome: normalizePerson(getValue(row, ['Aut_Nome'])),
-      sexo: normalizePerson(getValue(row, ['Aut_Sexo', 'Sexo'])),
-      gerente: normalizePerson(getValue(row, ['Aut_SuperintendenteApelido'])),
-      diretor: normalizePerson(getValue(row, ['Aut_DiretorApelido'])),
-      creciStatus: normalizePerson(getValue(row, ['Aut_CreciStatus'])),
-      creciTipo: normalizePerson(getValue(row, ['Aut_CreciTipo'])),
-      dataNascimento: dateKey(getValue(row, ['Aut_DtNascimento'])),
+      nome: normalizePerson(getValue(row, ['Aut_Nome', 'NOME'])),
+      sexo: normalizePerson(getValue(row, ['Aut_Sexo', 'Sexo', 'SEXO'])),
+      gerente: normalizePerson(getValue(row, ['Aut_SuperintendenteApelido', 'GERENTE'])),
+      diretor: normalizePerson(getValue(row, ['Aut_DiretorApelido', 'DIRETOR'])),
+      creciStatus: normalizePerson(getValue(row, ['Aut_CreciStatus', 'Status Creci'])),
+      creciTipo: normalizePerson(getValue(row, ['Aut_CreciTipo', 'CRECI TIPO', 'Recu_TpCreci'])),
+      estadoCivil: normalizePerson(getValue(row, ['Estado Civil', 'Aut_EstadoCivil'])),
+      escolaridade: normalizePerson(getValue(row, ['Escolaridade', 'Aut_Escolaridade'])),
+      indicacao: normalizePerson(getValue(row, ['Indicação', 'Indicacao'])),
+      dataNascimento: dateKey(getValue(row, ['Aut_DtNascimento', 'Data Nasc'])),
       dataInicioCargo: dateKey(getValue(row, ['Aut_UltimaDataInicioCargo'])),
+      dataCredenciamento: dateKey(getValue(row, ['Credenciamento', 'Aut_UltimaDataInicioCargo'])),
+      dataDescredenciamento: dateKey(getValue(row, ['Descredenciamento', 'Aut_UltimaDataDescredenciamento'])),
     });
   });
 

@@ -104,6 +104,36 @@ const formatSex = (value: string) => {
   return normalized || 'Não informado';
 };
 
+const parseIsoDate = (value: string) => {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getMonthBounds = (monthKey: string) => {
+  const [year, month] = monthKey.split('-').map(Number);
+  if (!year || !month) return null;
+  return {
+    start: new Date(Date.UTC(year, month - 1, 1)),
+    end: new Date(Date.UTC(year, month, 0, 23, 59, 59, 999)),
+  };
+};
+
+const isBrokerActiveInMonth = (entry: BrokerProfileEntry, monthKey: string) => {
+  if (entry.status === 'CANDIDATO INATIVO') return false;
+
+  if (monthKey === 'Todos') {
+    return entry.status !== 'DESCREDENCIADO' && !entry.dataDescredenciamento;
+  }
+
+  const bounds = getMonthBounds(monthKey);
+  const credentialDate = parseIsoDate(entry.dataCredenciamento);
+  const exitDate = parseIsoDate(entry.dataDescredenciamento);
+  if (!bounds || !credentialDate) return false;
+
+  return credentialDate <= bounds.end && (!exitDate || exitDate >= bounds.start);
+};
+
 interface RankingItem {
   name: string;
   value: number;
@@ -742,7 +772,7 @@ export default function App() {
   const filteredBrokerProfiles = useMemo(() => {
     const search = searchTerm.toLowerCase();
     return brokerProfileEntries.filter((entry) => {
-      if (entry.status === 'DESCREDENCIADO') return false;
+      if (!isBrokerActiveInMonth(entry, selectedMonth)) return false;
       const matchDirector =
         selectedDirector === 'Todos' || entry.diretor === selectedDirector;
       const matchSearch =
@@ -751,10 +781,12 @@ export default function App() {
         entry.gerente.toLowerCase().includes(search) ||
         entry.diretor.toLowerCase().includes(search) ||
         entry.creciStatus.toLowerCase().includes(search) ||
-        entry.creciTipo.toLowerCase().includes(search);
+        entry.creciTipo.toLowerCase().includes(search) ||
+        entry.estadoCivil.toLowerCase().includes(search) ||
+        entry.escolaridade.toLowerCase().includes(search);
       return matchDirector && matchSearch;
     });
-  }, [brokerProfileEntries, selectedDirector, searchTerm]);
+  }, [brokerProfileEntries, selectedDirector, selectedMonth, searchTerm]);
 
   const brokerProfileStats = useMemo(() => {
     const calculateAge = (dateValue: string) => {
@@ -788,6 +820,46 @@ export default function App() {
         .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
     };
 
+    const monthFromDate = (dateValue: string) => dateValue.slice(0, 7);
+    const turnoverBase = brokerProfileEntries.filter((entry) => {
+      const search = searchTerm.toLowerCase();
+      const matchDirector =
+        selectedDirector === 'Todos' || entry.diretor === selectedDirector;
+      const matchSearch =
+        entry.corretor.toLowerCase().includes(search) ||
+        entry.nome.toLowerCase().includes(search) ||
+        entry.gerente.toLowerCase().includes(search) ||
+        entry.diretor.toLowerCase().includes(search);
+      return matchDirector && matchSearch;
+    });
+    const turnoverMonths = new Set<string>();
+    turnoverBase.forEach((entry) => {
+      if (entry.dataCredenciamento) turnoverMonths.add(monthFromDate(entry.dataCredenciamento));
+      if (entry.dataDescredenciamento) turnoverMonths.add(monthFromDate(entry.dataDescredenciamento));
+    });
+    const selectedTurnoverMonths =
+      selectedMonth === 'Todos'
+        ? [...turnoverMonths].sort()
+        : [selectedMonth];
+    const turnoverData = selectedTurnoverMonths
+      .map((month) => {
+        const contratados = turnoverBase.filter(
+          (entry) => monthFromDate(entry.dataCredenciamento) === month,
+        ).length;
+        const sairam = turnoverBase.filter(
+          (entry) => monthFromDate(entry.dataDescredenciamento) === month,
+        ).length;
+        return {
+          month,
+          mes: formatMonthYear(month).slice(0, 3),
+          contratados,
+          sairam,
+          saldo: contratados - sairam,
+        };
+      })
+      .filter((item) => item.contratados || item.sairam)
+      .slice(selectedMonth === 'Todos' ? -12 : 0);
+
     const ages = filteredBrokerProfiles
       .map((entry) => calculateAge(entry.dataNascimento))
       .filter((age): age is number => age !== null);
@@ -809,14 +881,19 @@ export default function App() {
       creciRegularPct: percentage(regularCreci, filteredBrokerProfiles.length),
       creciStatus,
       creciTipo: countBy((entry) => entry.creciTipo),
+      estadoCivil: countBy((entry) => entry.estadoCivil),
+      escolaridade: countBy((entry) => entry.escolaridade),
       diretorias: countBy((entry) => entry.diretor).slice(0, 10),
       gerentes: countBy((entry) => entry.gerente).slice(0, 10),
+      turnoverData,
+      contratadosMes: turnoverData.reduce((acc, item) => acc + item.contratados, 0),
+      sairamMes: turnoverData.reduce((acc, item) => acc + item.sairam, 0),
       faixasEtarias: ['Até 25', '26 a 35', '36 a 45', '46 a 55', '56+', 'Sem nascimento'].map((name) => ({
         name,
         value: ageRanges.get(name) ?? 0,
       })),
     };
-  }, [filteredBrokerProfiles]);
+  }, [brokerProfileEntries, filteredBrokerProfiles, selectedDirector, selectedMonth, searchTerm]);
 
   const salesByProfileStats = useMemo(() => {
     const profileByBroker = new Map(
@@ -844,6 +921,8 @@ export default function App() {
           sale.incorporador.toLowerCase().includes(search) ||
           (profile?.creciStatus.toLowerCase().includes(search) ?? false) ||
           (profile?.creciTipo.toLowerCase().includes(search) ?? false) ||
+          (profile?.estadoCivil.toLowerCase().includes(search) ?? false) ||
+          (profile?.escolaridade.toLowerCase().includes(search) ?? false) ||
           (profile?.sexo.toLowerCase().includes(search) ?? false) ||
           (semCorretor && 'venda sem corretor'.includes(search));
         return matchDirector && matchMonth && matchSearch;
@@ -904,6 +983,8 @@ export default function App() {
       porFaixaEtaria: aggregate(({ profile, semCorretor }) => (semCorretor ? 'Venda sem corretor' : ageRange(calculateAge(profile?.dataNascimento ?? '')))),
       porCreciStatus: aggregate(({ profile, semCorretor }) => (semCorretor ? 'Venda sem corretor' : profile?.creciStatus ?? 'Não informado')),
       porCreciTipo: aggregate(({ profile, semCorretor }) => (semCorretor ? 'Venda sem corretor' : profile?.creciTipo ?? 'Não informado')),
+      porEstadoCivil: aggregate(({ profile, semCorretor }) => (semCorretor ? 'Venda sem corretor' : profile?.estadoCivil ?? 'Não informado')),
+      porEscolaridade: aggregate(({ profile, semCorretor }) => (semCorretor ? 'Venda sem corretor' : profile?.escolaridade ?? 'Não informado')),
       porDiretoria: aggregate(({ sale }) => sale.diretor),
       porGerente: aggregate(({ sale }) => sale.gerente, ({ sale }) => sale.diretor),
     };
@@ -1413,17 +1494,19 @@ export default function App() {
                     Perfil dos Corretores Credenciados
                   </h3>
                   <p className="mt-2 max-w-4xl text-sm font-medium text-gray-500">
-                    Considera somente registros com cargo Corretor e remove Candidato inativo e Descredenciado. A base não possui coluna oficial de sexo/gênero, então essa métrica não é inferida por nome.
+                    Considera somente registros com cargo Corretor. O total usa Credenciamento e Descredenciamento para contar quem estava ativo no mês filtrado.
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
                 {[
-                  { label: 'Corretores credenciados', value: brokerProfileStats.total.toLocaleString(), icon: Users, color: 'indigo' },
+                  { label: 'Corretores ativos', value: brokerProfileStats.total.toLocaleString(), icon: Users, color: 'indigo' },
                   { label: 'Sexo predominante', value: brokerProfileStats.sexo[0]?.name ?? 'N/D', icon: UserCheck, color: 'blue' },
                   { label: 'Idade média', value: brokerProfileStats.idadeMedia ? `${brokerProfileStats.idadeMedia.toFixed(1)} anos` : 'N/D', icon: Calendar, color: 'emerald' },
                   { label: 'Faixa predominante', value: brokerProfileStats.faixaPredominante, icon: Target, color: 'orange' },
+                  { label: 'Contratados', value: brokerProfileStats.contratadosMes.toLocaleString(), icon: UserCheck, color: 'emerald' },
+                  { label: 'Saíram', value: brokerProfileStats.sairamMes.toLocaleString(), icon: UserX, color: 'orange' },
                   { label: 'CRECI regular', value: `${brokerProfileStats.creciRegularPct.toFixed(1)}%`, icon: Trophy, color: 'emerald' },
                 ].map((card) => {
                   const Icon = card.icon;
@@ -1494,10 +1577,32 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
+              <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 lg:rounded-[40px]">
+                <h3 className="mb-8 flex items-center gap-3 font-black uppercase tracking-tighter text-gray-900">
+                  <ArrowUpRight className="text-indigo-600" size={24} /> Turnover de Corretores
+                </h3>
+                <div className="overflow-x-auto pb-2">
+                  <div className="h-[320px] min-w-[680px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={brokerProfileStats.turnoverData} barGap={8} barCategoryGap="26%">
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#9CA3AF' }} />
+                        <YAxis axisLine={false} tickLine={false} allowDecimals={false} tick={{ fontSize: 10, fill: '#9CA3AF' }} />
+                        <Tooltip />
+                        <Bar dataKey="contratados" name="Contratados" fill="#46dcaa" radius={[10, 10, 0, 0]} />
+                        <Bar dataKey="sairam" name="Saíram" fill="#eb194b" radius={[10, 10, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                 {[
                   { title: 'Sexo', items: brokerProfileStats.sexo },
                   { title: 'Tipo de CRECI', items: brokerProfileStats.creciTipo },
+                  { title: 'Estado Civil', items: brokerProfileStats.estadoCivil },
+                  { title: 'Escolaridade', items: brokerProfileStats.escolaridade },
                   { title: 'Diretorias', items: brokerProfileStats.diretorias },
                   { title: 'Gerentes', items: brokerProfileStats.gerentes },
                 ].map((section) => (
@@ -1810,6 +1915,16 @@ export default function App() {
                   title="VGV por Tipo de CRECI"
                   subtitle="VGV por tipo de CRECI cadastrado."
                   items={salesByProfileStats.porCreciTipo}
+                />
+                <RankingSection
+                  title="VGV por Estado Civil"
+                  subtitle="VGV intermediado por estado civil cadastrado."
+                  items={salesByProfileStats.porEstadoCivil}
+                />
+                <RankingSection
+                  title="VGV por Escolaridade"
+                  subtitle="VGV intermediado por escolaridade cadastrada."
+                  items={salesByProfileStats.porEscolaridade}
                 />
                 <RankingSection
                   title="VGV por Diretoria"
