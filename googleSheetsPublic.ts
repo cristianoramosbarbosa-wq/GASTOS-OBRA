@@ -324,7 +324,7 @@ export async function loadPerformanceData(signal?: AbortSignal) {
 
     if (cargo !== 'CORRETOR') return;
     if (!corretor) return;
-    if (status === 'CANDIDATO INATIVO' || status === 'DESCREDENCIADO') return;
+    if (status === 'CANDIDATO INATIVO') return;
 
     brokerProfileEntries.push({
       empresa: normalizePerson(getValue(row, ['Aut_Empresa'])),

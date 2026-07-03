@@ -742,6 +742,7 @@ export default function App() {
   const filteredBrokerProfiles = useMemo(() => {
     const search = searchTerm.toLowerCase();
     return brokerProfileEntries.filter((entry) => {
+      if (entry.status === 'DESCREDENCIADO') return false;
       const matchDirector =
         selectedDirector === 'Todos' || entry.diretor === selectedDirector;
       const matchSearch =
@@ -823,23 +824,28 @@ export default function App() {
     );
     const search = searchTerm.toLowerCase();
     const eligibleSales = salesEntries
-      .map((sale) => ({ sale, profile: profileByBroker.get(sale.corretor) }))
-      .filter(({ sale, profile }) => {
-        if (!profile) return false;
+      .map((sale) => ({
+        sale,
+        profile: profileByBroker.get(sale.corretor),
+        semCorretor: sale.corretor === sale.gerente || sale.corretor === sale.diretor,
+      }))
+      .filter(({ sale, profile, semCorretor }) => {
+        if (!profile && !semCorretor) return false;
         const matchDirector =
           selectedDirector === 'Todos' || sale.diretor === selectedDirector;
         const matchMonth =
           selectedMonth === 'Todos' || sale.mesVigente === selectedMonth;
         const matchSearch =
           sale.corretor.toLowerCase().includes(search) ||
-          profile.nome.toLowerCase().includes(search) ||
+          (profile?.nome.toLowerCase().includes(search) ?? false) ||
           sale.gerente.toLowerCase().includes(search) ||
           sale.diretor.toLowerCase().includes(search) ||
           sale.empreendimento.toLowerCase().includes(search) ||
           sale.incorporador.toLowerCase().includes(search) ||
-          profile.creciStatus.toLowerCase().includes(search) ||
-          profile.creciTipo.toLowerCase().includes(search) ||
-          profile.sexo.toLowerCase().includes(search);
+          (profile?.creciStatus.toLowerCase().includes(search) ?? false) ||
+          (profile?.creciTipo.toLowerCase().includes(search) ?? false) ||
+          (profile?.sexo.toLowerCase().includes(search) ?? false) ||
+          (semCorretor && 'venda sem corretor'.includes(search));
         return matchDirector && matchMonth && matchSearch;
       });
 
@@ -864,17 +870,16 @@ export default function App() {
     };
 
     const aggregate = (
-      selector: (item: { sale: SalesEntry; profile: BrokerProfileEntry }) => string,
-      detailSelector?: (item: { sale: SalesEntry; profile: BrokerProfileEntry }) => string,
+      selector: (item: { sale: SalesEntry; profile?: BrokerProfileEntry; semCorretor: boolean }) => string,
+      detailSelector?: (item: { sale: SalesEntry; profile?: BrokerProfileEntry; semCorretor: boolean }) => string,
     ) => {
       const ranking = new Map<string, RankingItem & { count: number }>();
-      eligibleSales.forEach(({ sale, profile }) => {
-        if (!profile) return;
-        const name = selector({ sale, profile }) || 'Não informado';
+      eligibleSales.forEach(({ sale, profile, semCorretor }) => {
+        const name = selector({ sale, profile, semCorretor }) || 'Não informado';
         const current = ranking.get(name) ?? {
           name,
           value: 0,
-          detail: detailSelector?.({ sale, profile }),
+          detail: detailSelector?.({ sale, profile, semCorretor }),
           count: 0,
         };
         current.value += sale.vgv;
@@ -887,16 +892,18 @@ export default function App() {
     };
 
     const totalVgv = eligibleSales.reduce((acc, item) => acc + item.sale.vgv, 0);
+    const vendasSemCorretor = eligibleSales.filter((item) => item.semCorretor).length;
 
     return {
       totalVgv,
       totalVendas: eligibleSales.length,
-      corretoresComVenda: new Set(eligibleSales.map((item) => item.sale.corretor)).size,
+      corretoresComVenda: new Set(eligibleSales.filter((item) => !item.semCorretor).map((item) => item.sale.corretor)).size,
+      vendasSemCorretor,
       ticketMedio: eligibleSales.length ? totalVgv / eligibleSales.length : 0,
-      porSexo: aggregate(({ profile }) => formatSex(profile.sexo)),
-      porFaixaEtaria: aggregate(({ profile }) => ageRange(calculateAge(profile.dataNascimento))),
-      porCreciStatus: aggregate(({ profile }) => profile.creciStatus),
-      porCreciTipo: aggregate(({ profile }) => profile.creciTipo),
+      porSexo: aggregate(({ profile, semCorretor }) => (semCorretor ? 'Venda sem corretor' : formatSex(profile?.sexo ?? ''))),
+      porFaixaEtaria: aggregate(({ profile, semCorretor }) => (semCorretor ? 'Venda sem corretor' : ageRange(calculateAge(profile?.dataNascimento ?? '')))),
+      porCreciStatus: aggregate(({ profile, semCorretor }) => (semCorretor ? 'Venda sem corretor' : profile?.creciStatus ?? 'Não informado')),
+      porCreciTipo: aggregate(({ profile, semCorretor }) => (semCorretor ? 'Venda sem corretor' : profile?.creciTipo ?? 'Não informado')),
       porDiretoria: aggregate(({ sale }) => sale.diretor),
       porGerente: aggregate(({ sale }) => sale.gerente, ({ sale }) => sale.diretor),
     };
@@ -1753,15 +1760,16 @@ export default function App() {
                   Análise Comercial por Perfil do Corretor
                 </h3>
                 <p className="mt-2 max-w-4xl text-sm font-medium text-gray-500">
-                  Cruza as vendas com a aba Perfil corretor, considerando somente corretores credenciados. Respeita os filtros de diretoria, mês e busca.
+                  Cruza as vendas com a aba Perfil corretor, incluindo corretores descredenciados. Vendas lançadas no nome do gerente ou diretor aparecem como Venda sem corretor.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 {[
                   { label: 'VGV analisado', value: formatCurrency(salesByProfileStats.totalVgv), icon: DollarSign, color: 'indigo' },
                   { label: 'Vendas analisadas', value: salesByProfileStats.totalVendas.toLocaleString(), icon: BarChart3, color: 'blue' },
                   { label: 'Corretores com venda', value: salesByProfileStats.corretoresComVenda.toLocaleString(), icon: Users, color: 'emerald' },
+                  { label: 'Vendas sem corretor', value: salesByProfileStats.vendasSemCorretor.toLocaleString(), icon: UserX, color: 'orange' },
                   { label: 'Ticket médio', value: formatCurrency(salesByProfileStats.ticketMedio), icon: Target, color: 'orange' },
                 ].map((card) => {
                   const Icon = card.icon;
