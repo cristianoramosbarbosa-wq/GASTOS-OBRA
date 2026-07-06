@@ -258,43 +258,43 @@ function PlantaoRankingTable({
 }) {
   return (
     <div className="bg-white rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
-      <div className="p-5 sm:p-7 border-b border-gray-100">
-        <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">{title}</h3>
+      <div className="p-4 sm:p-5 border-b border-gray-100">
+        <h3 className="text-base font-black text-gray-900 uppercase tracking-tighter sm:text-lg">{title}</h3>
         <p className="mt-1 text-xs font-bold uppercase tracking-widest text-gray-400">{subtitle}</p>
       </div>
       <div className="overflow-hidden">
         <table className="plantao-responsive-table w-full table-fixed text-left">
           <thead>
             <tr className="border-b border-gray-100 text-[10px] uppercase font-black text-gray-400 bg-gray-50/60">
-              <th className="w-12 px-3 py-4 sm:w-16 sm:px-5">#</th>
-              <th className="px-2 py-4 sm:px-5">Nome</th>
-              <th className="hidden px-3 py-4 text-right md:table-cell">Corretores</th>
-              <th className="px-6 py-4 text-right">Plantões</th>
-              <th className="w-16 px-2 py-4 text-right sm:w-20 sm:px-3">Faltas</th>
-              <th className="w-20 px-2 py-4 text-right sm:w-24 sm:px-3">% Falta</th>
+              <th className="w-10 px-2 py-3 sm:w-14 sm:px-4">#</th>
+              <th className="px-2 py-3 sm:px-4">Nome</th>
+              <th className="hidden px-2 py-3 text-right md:table-cell">Corretores</th>
+              <th className="hidden px-2 py-3 text-right sm:table-cell">Plantões</th>
+              <th className="w-14 px-2 py-3 text-right sm:w-16">Faltas</th>
+              <th className="w-16 px-2 py-3 text-right sm:w-20">% Falta</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {items.map((item, index) => (
               <tr key={item.name} className="hover:bg-gray-50/60 transition-colors">
-                <td className="px-3 py-4 sm:px-5">
+                <td className="px-2 py-3 sm:px-4">
                   <span className={`inline-flex h-7 w-7 items-center justify-center rounded-xl text-[10px] font-black sm:h-8 sm:w-8 sm:text-xs ${
                     index < 3 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-400'
                   }`}>
                     {index + 1}
                   </span>
                 </td>
-                <td className="min-w-0 px-2 py-4 sm:px-5">
+                <td className="min-w-0 px-2 py-3 sm:px-4">
                   <p className="break-words text-[10px] font-black leading-tight text-gray-900 sm:text-xs" title={item.name}>{item.name}</p>
                   <p className="mt-1 break-words text-[8px] font-bold uppercase leading-tight tracking-wider text-gray-400 sm:text-[9px]" title={item.detail}>{item.detail}</p>
                   <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-gray-400 sm:hidden">
                     {item.plantoes.toLocaleString()} plantões · {item.corretores} corret.
                   </p>
                 </td>
-                <td className="hidden px-3 py-4 text-right text-sm font-black text-gray-700 md:table-cell">{item.corretores}</td>
-                <td className="hidden px-3 py-4 text-right text-sm font-black text-gray-900 sm:table-cell">{item.plantoes.toLocaleString()}</td>
-                <td className="px-2 py-4 text-right text-sm font-black text-red-600 sm:px-3">{item.faltas.toLocaleString()}</td>
-                <td className="px-2 py-4 text-right sm:px-3">
+                <td className="hidden px-2 py-3 text-right text-xs font-black text-gray-700 md:table-cell">{item.corretores}</td>
+                <td className="hidden px-2 py-3 text-right text-xs font-black text-gray-900 sm:table-cell">{item.plantoes.toLocaleString()}</td>
+                <td className="px-2 py-3 text-right text-xs font-black text-red-600">{item.faltas.toLocaleString()}</td>
+                <td className="px-2 py-3 text-right">
                   <span className={`rounded-full px-2 py-1 text-[10px] font-black sm:px-3 sm:text-xs ${
                     item.taxaFalta > 0 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
                   }`}>
@@ -1206,7 +1206,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className={`w-full max-w-none px-3 py-4 transition-all duration-300 sm:px-5 sm:py-5 lg:px-5 ${
+      <main className={`max-w-none px-3 py-4 transition-all duration-300 sm:px-5 sm:py-5 lg:px-5 ${
         isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-44'
       }`}>
         {isLoading && (
@@ -1743,7 +1743,7 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-6 sm:space-y-8"
+              className="space-y-4"
             >
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {[
@@ -1901,13 +1901,13 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
                 <PlantaoRankingTable
                   title="Gerentes"
                   subtitle="Ordenado por maior volume de faltas."
                   items={plantaoRankings.gerentes.slice(0, 15)}
                 />
-                <div className="grid grid-cols-1 gap-6">
+                <div className="contents">
                 <PlantaoRankingTable
                   title="Diretoria"
                   subtitle="Plantões, faltas e taxa de falta por diretoria."
@@ -1921,7 +1921,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <div className="hidden">
                 <PlantaoRankingTable
                   title="Plantões por Turno"
