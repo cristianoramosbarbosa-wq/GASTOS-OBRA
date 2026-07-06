@@ -723,7 +723,7 @@ export default function App() {
       const matchDirector =
         selectedDirector === 'Todos' || entry.diretor === selectedDirector;
       const matchMonth =
-        selectedMonth === 'Todos' || entry.origem === 'plantao' || entry.mesVigente === selectedMonth;
+        selectedMonth === 'Todos' || entry.mesVigente === selectedMonth;
       const matchSearch =
         entry.corretor.toLowerCase().includes(search) ||
         entry.gerente.toLowerCase().includes(search) ||
@@ -754,7 +754,7 @@ export default function App() {
         .filter((entry) => entry.faltas > 0 && entry.empreendimento)
         .map((entry) => entry.empreendimento),
     );
-    const taxaFalta = percentage(totalFaltas, totalPlantoes + totalFaltas);
+    const taxaFalta = percentage(totalFaltas, totalPlantoes);
 
     return {
       totalPlantoes,
@@ -808,7 +808,7 @@ export default function App() {
           plantoes: item.plantoes,
           faltas: item.faltas,
           corretores: item.corretores.size,
-          taxaFalta: percentage(item.faltas, item.plantoes + item.faltas),
+          taxaFalta: percentage(item.faltas, item.plantoes),
         }))
         .sort((a, b) => b.faltas - a.faltas || b.taxaFalta - a.taxaFalta || b.plantoes - a.plantoes);
     };
@@ -825,6 +825,10 @@ export default function App() {
       corretores: aggregate(
         (entry) => entry.corretor,
         (entry) => `${entry.gerente} · ${entry.diretor}`,
+      ),
+      turnos: aggregate(
+        (entry) => entry.turno,
+        () => 'Turno',
       ),
       incorporadores: aggregate(
         (entry) => entry.incorporador,
@@ -1849,16 +1853,21 @@ export default function App() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                <FaltasRankingTable
-                  title="Faltas por Incorporador"
-                  subtitle="Aba Faltas, filtrada pela DATA do registro."
-                  items={plantaoRankings.incorporadores.filter((item) => item.faltas > 0).slice(0, 15)}
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+                <PlantaoRankingTable
+                  title="Plantões por Turno"
+                  subtitle="Manhã e tarde com total de escalas, faltas e taxa."
+                  items={plantaoRankings.turnos.filter((item) => item.plantoes > 0)}
                 />
-                <FaltasRankingTable
-                  title="Faltas por Produto"
-                  subtitle="Produto considerado a partir da coluna STAND."
-                  items={plantaoRankings.empreendimentos.filter((item) => item.faltas > 0).slice(0, 15)}
+                <PlantaoRankingTable
+                  title="Plantões por Incorporador"
+                  subtitle="Escalas e faltas por incorporador."
+                  items={plantaoRankings.incorporadores.filter((item) => item.plantoes > 0).slice(0, 15)}
+                />
+                <PlantaoRankingTable
+                  title="Plantões por Produto"
+                  subtitle="Produto considerado a partir da coluna Stand."
+                  items={plantaoRankings.empreendimentos.filter((item) => item.plantoes > 0).slice(0, 15)}
                 />
               </div>
 
