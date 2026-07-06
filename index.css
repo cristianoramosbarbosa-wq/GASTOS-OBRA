@@ -82,4 +82,10 @@
   .font-mono-data {
     @apply font-mono text-[11px] tracking-tight;
   }
+
+  @media (max-width: 639px) {
+    .plantao-responsive-table th:nth-child(4) {
+      display: none;
+    }
+  }
 }

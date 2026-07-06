@@ -262,37 +262,40 @@ function PlantaoRankingTable({
         <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">{title}</h3>
         <p className="mt-1 text-xs font-bold uppercase tracking-widest text-gray-400">{subtitle}</p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[760px] w-full text-left">
+      <div className="overflow-hidden">
+        <table className="plantao-responsive-table w-full table-fixed text-left">
           <thead>
             <tr className="border-b border-gray-100 text-[10px] uppercase font-black text-gray-400 bg-gray-50/60">
-              <th className="px-6 py-4">#</th>
-              <th className="px-6 py-4">Nome</th>
-              <th className="px-6 py-4 text-right">Corretores</th>
+              <th className="w-12 px-3 py-4 sm:w-16 sm:px-5">#</th>
+              <th className="px-2 py-4 sm:px-5">Nome</th>
+              <th className="hidden px-3 py-4 text-right md:table-cell">Corretores</th>
               <th className="px-6 py-4 text-right">Plantões</th>
-              <th className="px-6 py-4 text-right">Faltas</th>
-              <th className="px-6 py-4 text-right">% Falta</th>
+              <th className="w-16 px-2 py-4 text-right sm:w-20 sm:px-3">Faltas</th>
+              <th className="w-20 px-2 py-4 text-right sm:w-24 sm:px-3">% Falta</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {items.map((item, index) => (
               <tr key={item.name} className="hover:bg-gray-50/60 transition-colors">
-                <td className="px-6 py-4">
-                  <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-xs font-black ${
+                <td className="px-3 py-4 sm:px-5">
+                  <span className={`inline-flex h-7 w-7 items-center justify-center rounded-xl text-[10px] font-black sm:h-8 sm:w-8 sm:text-xs ${
                     index < 3 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-400'
                   }`}>
                     {index + 1}
                   </span>
                 </td>
-                <td className="px-6 py-4">
-                  <p className="text-sm font-black text-gray-900">{item.name}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{item.detail}</p>
+                <td className="min-w-0 px-2 py-4 sm:px-5">
+                  <p className="truncate text-xs font-black text-gray-900 sm:text-sm" title={item.name}>{item.name}</p>
+                  <p className="truncate text-[9px] font-bold uppercase tracking-widest text-gray-400 sm:text-[10px]" title={item.detail}>{item.detail}</p>
+                  <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-gray-400 sm:hidden">
+                    {item.plantoes.toLocaleString()} plantões · {item.corretores} corret.
+                  </p>
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-black text-gray-700">{item.corretores}</td>
-                <td className="px-6 py-4 text-right text-sm font-black text-gray-900">{item.plantoes.toLocaleString()}</td>
-                <td className="px-6 py-4 text-right text-sm font-black text-red-600">{item.faltas.toLocaleString()}</td>
-                <td className="px-6 py-4 text-right">
-                  <span className={`rounded-full px-3 py-1 text-xs font-black ${
+                <td className="hidden px-3 py-4 text-right text-sm font-black text-gray-700 md:table-cell">{item.corretores}</td>
+                <td className="hidden px-3 py-4 text-right text-sm font-black text-gray-900 sm:table-cell">{item.plantoes.toLocaleString()}</td>
+                <td className="px-2 py-4 text-right text-sm font-black text-red-600 sm:px-3">{item.faltas.toLocaleString()}</td>
+                <td className="px-2 py-4 text-right sm:px-3">
+                  <span className={`rounded-full px-2 py-1 text-[10px] font-black sm:px-3 sm:text-xs ${
                     item.taxaFalta > 0 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
                   }`}>
                     {item.taxaFalta.toFixed(1)}%
@@ -322,8 +325,8 @@ function FaltasRankingTable({
         <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">{title}</h3>
         <p className="mt-1 text-xs font-bold uppercase tracking-widest text-gray-400">{subtitle}</p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[520px] w-full text-left">
+      <div className="overflow-hidden">
+        <table className="w-full table-fixed text-left">
           <thead>
             <tr className="border-b border-gray-100 text-[10px] uppercase font-black text-gray-400 bg-gray-50/60">
               <th className="px-6 py-4">#</th>
@@ -853,6 +856,19 @@ export default function App() {
         })),
     [plantaoRankings.diretorias],
   );
+
+  const plantaoInsights = useMemo(() => {
+    const critical = (items: PlantaoRankingItem[]) => items.find((item) => item.faltas > 0);
+    const comparecimento = Math.max(0, 100 - plantaoStats.taxaFalta);
+
+    return {
+      comparecimento,
+      turnoCritico: critical(plantaoRankings.turnos),
+      produtoCritico: critical(plantaoRankings.empreendimentos),
+      incorporadorCritico: critical(plantaoRankings.incorporadores),
+      gerenteCritico: critical(plantaoRankings.gerentes),
+    };
+  }, [plantaoRankings, plantaoStats.taxaFalta]);
 
   const filteredBrokerProfiles = useMemo(() => {
     const search = searchTerm.toLowerCase();
@@ -1780,17 +1796,17 @@ export default function App() {
                 })}
               </div>
 
-              <div className="rounded-3xl border border-red-100 bg-red-50 px-5 py-4 text-xs font-bold uppercase tracking-widest text-red-700">
+              {/*
                 Base única: aba Faltas. Cada linha é uma escala; Falta 1 conta ausência e Falta 0 conta presença.
-              </div>
+              */}
 
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
                 <div className="lg:col-span-3 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
                   <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
                     <BarChart3 className="text-indigo-600" size={24} /> Plantões x Faltas por Diretoria
                   </h3>
-                  <div className="overflow-x-auto pb-2">
-                    <div className="h-[320px] min-w-[680px]">
+                  <div className="pb-2">
+                    <div className="h-[320px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={plantaoDiretoriaChart} barGap={8} barCategoryGap="24%">
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -1807,8 +1823,49 @@ export default function App() {
 
                 <div className="lg:col-span-2 bg-black p-6 sm:p-8 rounded-3xl lg:rounded-[40px] text-white">
                   <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-200">Leitura operacional</p>
-                  <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter">Foco em escala e faltas</h3>
+                  <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter">Mapa de atenção</h3>
                   <div className="mt-8 space-y-4">
+                    <div className="rounded-2xl bg-white/10 p-4">
+                      <span className="text-[10px] font-bold uppercase text-white/50">Comparecimento geral</span>
+                      <p className="mt-1 text-2xl font-black">{plantaoInsights.comparecimento.toFixed(1)}%</p>
+                      <p className="text-xs font-bold text-emerald-200">
+                        {plantaoStats.totalPlantoes.toLocaleString()} escalas analisadas · {plantaoStats.totalFaltas.toLocaleString()} faltas
+                      </p>
+                    </div>
+
+                    {plantaoStats.totalFaltas > 0 ? (
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="rounded-2xl bg-white/10 p-4">
+                          <span className="text-[10px] font-bold uppercase text-white/50">Turno que pede atenção</span>
+                          <p className="mt-1 text-lg font-black">{plantaoInsights.turnoCritico?.name ?? '-'}</p>
+                          <p className="text-xs font-bold text-red-200">
+                            {plantaoInsights.turnoCritico?.faltas.toLocaleString() ?? '0'} faltas · {plantaoInsights.turnoCritico?.taxaFalta.toFixed(1) ?? '0.0'}%
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-white/10 p-4">
+                          <span className="text-[10px] font-bold uppercase text-white/50">Produto com mais faltas</span>
+                          <p className="mt-1 truncate text-lg font-black" title={plantaoInsights.produtoCritico?.name}>{plantaoInsights.produtoCritico?.name ?? '-'}</p>
+                          <p className="text-xs font-bold text-red-200">
+                            {plantaoInsights.produtoCritico?.faltas.toLocaleString() ?? '0'} faltas · {plantaoInsights.produtoCritico?.taxaFalta.toFixed(1) ?? '0.0'}%
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-white/10 p-4">
+                          <span className="text-[10px] font-bold uppercase text-white/50">Incorporador mais afetado</span>
+                          <p className="mt-1 truncate text-lg font-black" title={plantaoInsights.incorporadorCritico?.name}>{plantaoInsights.incorporadorCritico?.name ?? '-'}</p>
+                          <p className="text-xs font-bold text-red-200">
+                            {plantaoInsights.incorporadorCritico?.faltas.toLocaleString() ?? '0'} faltas · {plantaoInsights.incorporadorCritico?.taxaFalta.toFixed(1) ?? '0.0'}%
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl bg-white/10 p-4">
+                        <span className="text-[10px] font-bold uppercase text-white/50">Status da operação</span>
+                        <p className="mt-1 text-lg font-black">Escala cumprida</p>
+                        <p className="text-xs font-bold text-emerald-200">Nenhuma falta registrada no filtro atual</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="hidden">
                     {plantaoStats.totalFaltas > 0 ? (
                       <>
                         <div className="rounded-2xl bg-white/10 p-4">
