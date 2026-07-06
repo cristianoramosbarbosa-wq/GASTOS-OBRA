@@ -285,8 +285,8 @@ function PlantaoRankingTable({
                   </span>
                 </td>
                 <td className="min-w-0 px-2 py-4 sm:px-5">
-                  <p className="truncate text-xs font-black text-gray-900 sm:text-sm" title={item.name}>{item.name}</p>
-                  <p className="truncate text-[9px] font-bold uppercase tracking-widest text-gray-400 sm:text-[10px]" title={item.detail}>{item.detail}</p>
+                  <p className="break-words text-[10px] font-black leading-tight text-gray-900 sm:text-xs" title={item.name}>{item.name}</p>
+                  <p className="mt-1 break-words text-[8px] font-bold uppercase leading-tight tracking-wider text-gray-400 sm:text-[9px]" title={item.detail}>{item.detail}</p>
                   <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-gray-400 sm:hidden">
                     {item.plantoes.toLocaleString()} plantões · {item.corretores} corret.
                   </p>
@@ -1844,14 +1844,14 @@ export default function App() {
                         </div>
                         <div className="rounded-2xl bg-white/10 p-4">
                           <span className="text-[10px] font-bold uppercase text-white/50">Produto com mais faltas</span>
-                          <p className="mt-1 truncate text-lg font-black" title={plantaoInsights.produtoCritico?.name}>{plantaoInsights.produtoCritico?.name ?? '-'}</p>
+                          <p className="mt-1 break-words text-base font-black leading-tight sm:text-lg" title={plantaoInsights.produtoCritico?.name}>{plantaoInsights.produtoCritico?.name ?? '-'}</p>
                           <p className="text-xs font-bold text-red-200">
                             {plantaoInsights.produtoCritico?.faltas.toLocaleString() ?? '0'} faltas · {plantaoInsights.produtoCritico?.taxaFalta.toFixed(1) ?? '0.0'}%
                           </p>
                         </div>
                         <div className="rounded-2xl bg-white/10 p-4">
                           <span className="text-[10px] font-bold uppercase text-white/50">Incorporador mais afetado</span>
-                          <p className="mt-1 truncate text-lg font-black" title={plantaoInsights.incorporadorCritico?.name}>{plantaoInsights.incorporadorCritico?.name ?? '-'}</p>
+                          <p className="mt-1 break-words text-base font-black leading-tight sm:text-lg" title={plantaoInsights.incorporadorCritico?.name}>{plantaoInsights.incorporadorCritico?.name ?? '-'}</p>
                           <p className="text-xs font-bold text-red-200">
                             {plantaoInsights.incorporadorCritico?.faltas.toLocaleString() ?? '0'} faltas · {plantaoInsights.incorporadorCritico?.taxaFalta.toFixed(1) ?? '0.0'}%
                           </p>
@@ -1901,20 +1901,28 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
                 <PlantaoRankingTable
-                  title="Ranking de Gerentes por Faltas"
+                  title="Gerentes"
                   subtitle="Ordenado por maior volume de faltas."
                   items={plantaoRankings.gerentes.slice(0, 15)}
                 />
+                <div className="grid grid-cols-1 gap-6">
                 <PlantaoRankingTable
-                  title="Ranking de Diretorias"
+                  title="Diretoria"
                   subtitle="Plantões, faltas e taxa de falta por diretoria."
                   items={plantaoRankings.diretorias}
                 />
+                <PlantaoRankingTable
+                  title="Turno"
+                  subtitle="Manhã e tarde com escalas, faltas e taxa."
+                  items={plantaoRankings.turnos.filter((item) => item.plantoes > 0)}
+                />
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <div className="hidden">
                 <PlantaoRankingTable
                   title="Plantões por Turno"
                   subtitle="Manhã e tarde com total de escalas, faltas e taxa."
@@ -1930,11 +1938,22 @@ export default function App() {
                   subtitle="Produto considerado a partir da coluna Stand."
                   items={plantaoRankings.empreendimentos.filter((item) => item.plantoes > 0).slice(0, 15)}
                 />
+                </div>
+                <PlantaoRankingTable
+                  title="Incorp."
+                  subtitle="Escalas, faltas e taxa por incorporador."
+                  items={plantaoRankings.incorporadores.filter((item) => item.plantoes > 0).slice(0, 15)}
+                />
+                <PlantaoRankingTable
+                  title="Produto"
+                  subtitle="Escalas, faltas e taxa por produto/stand."
+                  items={plantaoRankings.empreendimentos.filter((item) => item.plantoes > 0).slice(0, 15)}
+                />
               </div>
 
               <PlantaoRankingTable
-                title="Corretores com Faltas"
-                subtitle="Detalhamento dos corretores com registro de falta."
+                title="Corretores"
+                subtitle="Corretores com registro de falta no filtro atual."
                 items={plantaoRankings.corretores.filter((item) => item.faltas > 0).slice(0, 30)}
               />
             </motion.div>
