@@ -1171,7 +1171,7 @@ export default function App() {
       <header className={`sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm transition-all duration-300 ${
         isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-44'
       }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-5 lg:px-5">
           <div className="min-h-16 py-3 flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               <div className="shrink-0 rounded-xl bg-white px-2.5 py-2 ring-1 ring-gray-100">
@@ -1206,9 +1206,9 @@ export default function App() {
         </div>
       </header>
 
-      <main className={`max-w-7xl px-3 py-5 transition-all duration-300 sm:px-6 sm:py-8 lg:px-8 ${
+      <main className={`w-full max-w-none px-3 py-4 transition-all duration-300 sm:px-5 sm:py-5 lg:px-5 ${
         isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-44'
-      } lg:mr-auto`}>
+      }`}>
         {isLoading && (
           <div className="mb-6 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm font-bold text-indigo-700">
             <RefreshCw size={18} className="animate-spin" />
@@ -1586,7 +1586,7 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-6 sm:space-y-8"
+              className="space-y-4 sm:space-y-5"
             >
               <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8 lg:rounded-[40px]">
                 <div>
@@ -1745,7 +1745,7 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6 sm:space-y-8"
             >
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {[
                   {
                     label: 'Total de Plantões',
@@ -1781,14 +1781,14 @@ export default function App() {
                   const Icon = card.icon;
                   const style = CARD_STYLES[card.color as keyof typeof CARD_STYLES];
                   return (
-                    <div key={card.label} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+                    <div key={card.label} className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{card.label}</p>
-                          <p className="mt-2 text-2xl font-black text-gray-900">{card.value}</p>
+                          <p className="mt-1 text-xl font-black text-gray-900">{card.value}</p>
                         </div>
-                        <div className={`rounded-2xl p-3 ${style.icon}`}>
-                          <Icon size={22} />
+                        <div className={`rounded-2xl p-2.5 ${style.icon}`}>
+                          <Icon size={20} />
                         </div>
                       </div>
                     </div>
@@ -1800,13 +1800,13 @@ export default function App() {
                 Base única: aba Faltas. Cada linha é uma escala; Falta 1 conta ausência e Falta 0 conta presença.
               */}
 
-              <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <div className="bg-white p-4 sm:p-6 rounded-3xl lg:rounded-[36px] shadow-sm border border-gray-100 overflow-hidden">
-                  <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
-                    <BarChart3 className="text-indigo-600" size={24} /> Plantões x Faltas por Diretoria
+                  <h3 className="mb-4 flex items-center gap-3 text-sm font-black uppercase tracking-tighter text-gray-900 sm:text-base">
+                    <BarChart3 className="text-indigo-600" size={22} /> Plantões x Faltas por Diretoria
                   </h3>
                   <div className="pb-2">
-                    <div className="h-[280px] w-full">
+                    <div className="h-[235px] w-full sm:h-[255px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={plantaoDiretoriaChart} barGap={8} barCategoryGap="24%">
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -1821,13 +1821,13 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-black p-5 sm:p-6 rounded-3xl lg:rounded-[36px] text-white">
+                <div className="bg-black p-4 sm:p-5 rounded-3xl lg:rounded-[36px] text-white">
                   <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-200">Leitura operacional</p>
                   <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter">Mapa de atenção</h3>
-                  <div className="mt-5 space-y-3">
+                  <div className="mt-4 space-y-3">
                     <div className="rounded-2xl bg-white/10 p-3 sm:p-4">
                       <span className="text-[10px] font-bold uppercase text-white/50">Comparecimento geral</span>
-                      <p className="mt-1 text-2xl font-black">{plantaoInsights.comparecimento.toFixed(1)}%</p>
+                      <p className="mt-1 text-xl font-black">{plantaoInsights.comparecimento.toFixed(1)}%</p>
                       <p className="text-xs font-bold text-emerald-200">
                         {plantaoStats.totalPlantoes.toLocaleString()} escalas analisadas · {plantaoStats.totalFaltas.toLocaleString()} faltas
                       </p>
