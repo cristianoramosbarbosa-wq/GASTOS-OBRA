@@ -1558,7 +1558,7 @@ export default function App() {
                 </div>
 
                 <div className="lg:col-span-3 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
-                  <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
+                  <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-5 flex items-center gap-3">
                     <ArrowUpRight className="text-indigo-600" size={24} /> Presença e Agendadas por Mês/Semana
                   </h3>
                   <div className="overflow-x-auto pb-2">
@@ -1800,13 +1800,13 @@ export default function App() {
                 Base única: aba Faltas. Cada linha é uma escala; Falta 1 conta ausência e Falta 0 conta presença.
               */}
 
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-                <div className="lg:col-span-3 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                <div className="bg-white p-4 sm:p-6 rounded-3xl lg:rounded-[36px] shadow-sm border border-gray-100 overflow-hidden">
                   <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
                     <BarChart3 className="text-indigo-600" size={24} /> Plantões x Faltas por Diretoria
                   </h3>
                   <div className="pb-2">
-                    <div className="h-[320px] w-full">
+                    <div className="h-[280px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={plantaoDiretoriaChart} barGap={8} barCategoryGap="24%">
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -1821,11 +1821,11 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="lg:col-span-2 bg-black p-6 sm:p-8 rounded-3xl lg:rounded-[40px] text-white">
+                <div className="bg-black p-5 sm:p-6 rounded-3xl lg:rounded-[36px] text-white">
                   <p className="text-[10px] font-black uppercase tracking-[0.25em] text-red-200">Leitura operacional</p>
                   <h3 className="mt-2 text-2xl font-black uppercase tracking-tighter">Mapa de atenção</h3>
-                  <div className="mt-8 space-y-4">
-                    <div className="rounded-2xl bg-white/10 p-4">
+                  <div className="mt-5 space-y-3">
+                    <div className="rounded-2xl bg-white/10 p-3 sm:p-4">
                       <span className="text-[10px] font-bold uppercase text-white/50">Comparecimento geral</span>
                       <p className="mt-1 text-2xl font-black">{plantaoInsights.comparecimento.toFixed(1)}%</p>
                       <p className="text-xs font-bold text-emerald-200">
@@ -1834,22 +1834,22 @@ export default function App() {
                     </div>
 
                     {plantaoStats.totalFaltas > 0 ? (
-                      <div className="grid grid-cols-1 gap-3">
-                        <div className="rounded-2xl bg-white/10 p-4">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div className="rounded-2xl bg-white/10 p-3 sm:p-4">
                           <span className="text-[10px] font-bold uppercase text-white/50">Turno que pede atenção</span>
-                          <p className="mt-1 text-lg font-black">{plantaoInsights.turnoCritico?.name ?? '-'}</p>
+                          <p className="mt-1 text-base font-black leading-tight">{plantaoInsights.turnoCritico?.name ?? '-'}</p>
                           <p className="text-xs font-bold text-red-200">
                             {plantaoInsights.turnoCritico?.faltas.toLocaleString() ?? '0'} faltas · {plantaoInsights.turnoCritico?.taxaFalta.toFixed(1) ?? '0.0'}%
                           </p>
                         </div>
-                        <div className="rounded-2xl bg-white/10 p-4">
+                        <div className="rounded-2xl bg-white/10 p-3 sm:p-4">
                           <span className="text-[10px] font-bold uppercase text-white/50">Produto com mais faltas</span>
                           <p className="mt-1 break-words text-base font-black leading-tight sm:text-lg" title={plantaoInsights.produtoCritico?.name}>{plantaoInsights.produtoCritico?.name ?? '-'}</p>
                           <p className="text-xs font-bold text-red-200">
                             {plantaoInsights.produtoCritico?.faltas.toLocaleString() ?? '0'} faltas · {plantaoInsights.produtoCritico?.taxaFalta.toFixed(1) ?? '0.0'}%
                           </p>
                         </div>
-                        <div className="rounded-2xl bg-white/10 p-4">
+                        <div className="rounded-2xl bg-white/10 p-3 sm:p-4">
                           <span className="text-[10px] font-bold uppercase text-white/50">Incorporador mais afetado</span>
                           <p className="mt-1 break-words text-base font-black leading-tight sm:text-lg" title={plantaoInsights.incorporadorCritico?.name}>{plantaoInsights.incorporadorCritico?.name ?? '-'}</p>
                           <p className="text-xs font-bold text-red-200">
@@ -1858,7 +1858,7 @@ export default function App() {
                         </div>
                       </div>
                     ) : (
-                      <div className="rounded-2xl bg-white/10 p-4">
+                      <div className="rounded-2xl bg-white/10 p-3 sm:p-4">
                         <span className="text-[10px] font-bold uppercase text-white/50">Status da operação</span>
                         <p className="mt-1 text-lg font-black">Escala cumprida</p>
                         <p className="text-xs font-bold text-emerald-200">Nenhuma falta registrada no filtro atual</p>
@@ -1901,7 +1901,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                 <PlantaoRankingTable
                   title="Gerentes"
                   subtitle="Ordenado por maior volume de faltas."
