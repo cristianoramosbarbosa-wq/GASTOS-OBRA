@@ -1780,6 +1780,10 @@ export default function App() {
                 })}
               </div>
 
+              <div className="rounded-3xl border border-red-100 bg-red-50 px-5 py-4 text-xs font-bold uppercase tracking-widest text-red-700">
+                Base única: aba Faltas. Cada linha é uma escala; Falta 1 conta ausência e Falta 0 conta presença.
+              </div>
+
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
                 <div className="lg:col-span-3 bg-white p-4 sm:p-8 rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
                   <h3 className="font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">

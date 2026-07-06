@@ -39,7 +39,7 @@ export interface PlantaoEntry {
   mesVigente: string;
   plantoes: number;
   faltas: number;
-  origem: 'plantao' | 'escala';
+  origem: 'escala';
 }
 
 export interface BrokerProfileEntry {
@@ -225,11 +225,10 @@ const monthlyKey = (diretor: string, gerente: string, mes: string) =>
   `${diretor}|${gerente}|${mes}`;
 
 export async function loadPerformanceData(signal?: AbortSignal) {
-  const [goals, visits, sales, plantoes, faltas, brokerProfiles] = await Promise.all([
+  const [goals, visits, sales, faltas, brokerProfiles] = await Promise.all([
     loadSheet('Meta Mensal', signal),
     loadSheet('Visitas', signal),
     loadSheet('Vendas', signal),
-    loadSheet('Plantões', signal),
     loadSheet('Faltas', signal),
     loadSheet('Perfil corretor', signal),
   ]);
@@ -319,7 +318,7 @@ export async function loadPerformanceData(signal?: AbortSignal) {
     const diretor = normalizePerson(getValue(row, ['DIRETOR', 'Diretor', 'Diretoria']));
     const gerente = normalizePerson(getValue(row, ['GERENTE', 'Gerente', 'Equipe']));
     const corretor = normalizePerson(getValue(row, ['CORRETOR', 'Corretor']));
-    const date = getValue(row, ['Data Plantão', 'Data Plantao', 'DATA', 'Data', 'Dia']);
+    const date = getValue(row, ['Data Plantão', 'Data PlantÃ£o', 'Data Plantao', 'DATA', 'Data', 'Dia']);
     const mes = monthKey(date);
     const falta = parseNumber(getValue(row, ['FALTA', 'Falta', 'Faltas'])) > 0 ? 1 : 0;
 
@@ -337,31 +336,6 @@ export async function loadPerformanceData(signal?: AbortSignal) {
       plantoes: 1,
       faltas: falta,
       origem: 'escala',
-    });
-  });
-
-  if (!plantaoEntries.length) plantoes.forEach((row) => {
-    const gerente = normalizePerson(getValue(row, ['Gerente', 'A']));
-    const corretor = normalizePerson(getValue(row, ['Corretor', 'B']));
-    const diretor = managerDirector.get(gerente) || 'SEM DIRETOR';
-    const totalPlantoes = parseNumber(getValue(row, ['Plantões', 'Plantoes', 'G']));
-    const totalFaltas = parseNumber(getValue(row, ['Faltas', 'H']));
-
-    if (!gerente || !corretor) return;
-    if (!totalPlantoes && !totalFaltas) return;
-
-    plantaoEntries.push({
-      diretor,
-      gerente,
-      corretor,
-      incorporador: normalizePerson(getValue(row, ['INCORPORADOR', 'Incorporador'])),
-      empreendimento: normalizeProductName(getValue(row, ['STAND', 'Stand', 'Produto', 'Empreendimento'])),
-      turno: normalizePerson(getValue(row, ['TURNO', 'Turno'])),
-      dataPlantao: '',
-      mesVigente: '',
-      plantoes: totalPlantoes,
-      faltas: totalFaltas,
-      origem: 'plantao',
     });
   });
 
