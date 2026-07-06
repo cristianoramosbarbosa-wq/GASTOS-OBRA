@@ -32,9 +32,13 @@ export interface PlantaoEntry {
   diretor: string;
   gerente: string;
   corretor: string;
+  incorporador: string;
+  empreendimento: string;
+  turno: string;
   mesVigente: string;
   plantoes: number;
   faltas: number;
+  origem: 'plantao' | 'falta';
 }
 
 export interface BrokerProfileEntry {
@@ -220,11 +224,12 @@ const monthlyKey = (diretor: string, gerente: string, mes: string) =>
   `${diretor}|${gerente}|${mes}`;
 
 export async function loadPerformanceData(signal?: AbortSignal) {
-  const [goals, visits, sales, plantoes, brokerProfiles] = await Promise.all([
+  const [goals, visits, sales, plantoes, faltas, brokerProfiles] = await Promise.all([
     loadSheet('Meta Mensal', signal),
     loadSheet('Visitas', signal),
     loadSheet('Vendas', signal),
     loadSheet('Plantões', signal),
+    loadSheet('Faltas', signal),
     loadSheet('Perfil corretor', signal),
   ]);
 
@@ -312,22 +317,47 @@ export async function loadPerformanceData(signal?: AbortSignal) {
   plantoes.forEach((row) => {
     const gerente = normalizePerson(getValue(row, ['Gerente', 'A']));
     const corretor = normalizePerson(getValue(row, ['Corretor', 'B']));
-    const date = getValue(row, ['Entrada', 'D']);
-    const mes = monthKey(date);
     const diretor = managerDirector.get(gerente) || 'SEM DIRETOR';
     const totalPlantoes = parseNumber(getValue(row, ['Plantões', 'Plantoes', 'G']));
-    const faltas = parseNumber(getValue(row, ['Faltas', 'H']));
 
-    if (!gerente || !corretor || !mes) return;
-    if (!totalPlantoes && !faltas) return;
+    if (!gerente || !corretor) return;
+    if (!totalPlantoes) return;
 
     plantaoEntries.push({
       diretor,
       gerente,
       corretor,
-      mesVigente: mes,
+      incorporador: normalizePerson(getValue(row, ['INCORPORADOR', 'Incorporador'])),
+      empreendimento: normalizeProductName(getValue(row, ['STAND', 'Stand', 'Produto', 'Empreendimento'])),
+      turno: normalizePerson(getValue(row, ['TURNO', 'Turno'])),
+      mesVigente: '',
       plantoes: totalPlantoes,
-      faltas,
+      faltas: 0,
+      origem: 'plantao',
+    });
+  });
+
+  faltas.forEach((row) => {
+    const diretor = normalizePerson(getValue(row, ['DIRETOR', 'Diretor', 'Diretoria']));
+    const gerente = normalizePerson(getValue(row, ['GERENTE', 'Gerente']));
+    const corretor = normalizePerson(getValue(row, ['CORRETOR', 'Corretor']));
+    const date = getValue(row, ['DATA', 'Data', 'Dia']);
+    const mes = monthKey(date);
+    const totalFaltas = parseNumber(getValue(row, ['FALTAS', 'Faltas', 'Falta'])) || 1;
+
+    if (!gerente || !corretor || !mes) return;
+
+    plantaoEntries.push({
+      diretor: diretor || managerDirector.get(gerente) || 'SEM DIRETOR',
+      gerente,
+      corretor,
+      incorporador: normalizePerson(getValue(row, ['INCORPORADOR', 'Incorporador'])),
+      empreendimento: normalizeProductName(getValue(row, ['STAND', 'Stand', 'Produto', 'Empreendimento'])),
+      turno: normalizePerson(getValue(row, ['TURNO', 'Turno'])),
+      mesVigente: mes,
+      plantoes: 0,
+      faltas: totalFaltas,
+      origem: 'falta',
     });
   });
 

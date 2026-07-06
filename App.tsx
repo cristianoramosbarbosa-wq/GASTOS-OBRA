@@ -307,6 +307,64 @@ function PlantaoRankingTable({
   );
 }
 
+function FaltasRankingTable({
+  title,
+  subtitle,
+  items,
+}: {
+  title: string;
+  subtitle: string;
+  items: PlantaoRankingItem[];
+}) {
+  return (
+    <div className="bg-white rounded-3xl lg:rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
+      <div className="p-5 sm:p-7 border-b border-gray-100">
+        <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">{title}</h3>
+        <p className="mt-1 text-xs font-bold uppercase tracking-widest text-gray-400">{subtitle}</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-[520px] w-full text-left">
+          <thead>
+            <tr className="border-b border-gray-100 text-[10px] uppercase font-black text-gray-400 bg-gray-50/60">
+              <th className="px-6 py-4">#</th>
+              <th className="px-6 py-4">Nome</th>
+              <th className="px-6 py-4 text-right">Faltas</th>
+              <th className="px-6 py-4 text-right">Corretores</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {items.length ? (
+              items.map((item, index) => (
+                <tr key={item.name} className="hover:bg-gray-50/60 transition-colors">
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-xs font-black ${
+                      index < 3 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-400'
+                    }`}>
+                      {index + 1}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-black text-gray-900">{item.name}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{item.detail}</p>
+                  </td>
+                  <td className="px-6 py-4 text-right text-sm font-black text-red-600">{item.faltas.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-right text-sm font-black text-gray-700">{item.corretores}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="px-6 py-10 text-center text-xs font-bold uppercase tracking-widest text-gray-400">
+                  Nenhuma falta encontrada no filtro atual
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -665,11 +723,14 @@ export default function App() {
       const matchDirector =
         selectedDirector === 'Todos' || entry.diretor === selectedDirector;
       const matchMonth =
-        selectedMonth === 'Todos' || entry.mesVigente === selectedMonth;
+        selectedMonth === 'Todos' || entry.origem === 'plantao' || entry.mesVigente === selectedMonth;
       const matchSearch =
         entry.corretor.toLowerCase().includes(search) ||
         entry.gerente.toLowerCase().includes(search) ||
-        entry.diretor.toLowerCase().includes(search);
+        entry.diretor.toLowerCase().includes(search) ||
+        entry.incorporador.toLowerCase().includes(search) ||
+        entry.empreendimento.toLowerCase().includes(search) ||
+        entry.turno.toLowerCase().includes(search);
       return matchDirector && matchMonth && matchSearch;
     });
   }, [plantaoEntries, selectedDirector, selectedMonth, searchTerm]);
@@ -683,6 +744,16 @@ export default function App() {
         .filter((entry) => entry.faltas > 0)
         .map((entry) => entry.gerente),
     );
+    const incorporadoresComFaltas = new Set(
+      filteredPlantaoEntries
+        .filter((entry) => entry.faltas > 0 && entry.incorporador)
+        .map((entry) => entry.incorporador),
+    );
+    const produtosComFaltas = new Set(
+      filteredPlantaoEntries
+        .filter((entry) => entry.faltas > 0 && entry.empreendimento)
+        .map((entry) => entry.empreendimento),
+    );
     const taxaFalta = percentage(totalFaltas, totalPlantoes + totalFaltas);
 
     return {
@@ -691,6 +762,8 @@ export default function App() {
       taxaFalta,
       corretores: corretores.size,
       gerentesComFaltas: gerentesComFaltas.size,
+      incorporadoresComFaltas: incorporadoresComFaltas.size,
+      produtosComFaltas: produtosComFaltas.size,
     };
   }, [filteredPlantaoEntries]);
 
@@ -752,6 +825,14 @@ export default function App() {
       corretores: aggregate(
         (entry) => entry.corretor,
         (entry) => `${entry.gerente} · ${entry.diretor}`,
+      ),
+      incorporadores: aggregate(
+        (entry) => entry.incorporador,
+        () => 'Incorporador',
+      ),
+      empreendimentos: aggregate(
+        (entry) => entry.empreendimento,
+        (entry) => entry.incorporador || 'Produto / Stand',
       ),
     };
   }, [filteredPlantaoEntries]);
@@ -1765,6 +1846,19 @@ export default function App() {
                   title="Ranking de Diretorias"
                   subtitle="Plantões, faltas e taxa de falta por diretoria."
                   items={plantaoRankings.diretorias}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <FaltasRankingTable
+                  title="Faltas por Incorporador"
+                  subtitle="Aba Faltas, filtrada pela DATA do registro."
+                  items={plantaoRankings.incorporadores.filter((item) => item.faltas > 0).slice(0, 15)}
+                />
+                <FaltasRankingTable
+                  title="Faltas por Produto"
+                  subtitle="Produto considerado a partir da coluna STAND."
+                  items={plantaoRankings.empreendimentos.filter((item) => item.faltas > 0).slice(0, 15)}
                 />
               </div>
 
