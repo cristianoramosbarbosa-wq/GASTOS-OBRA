@@ -952,7 +952,7 @@ export default function App() {
         entry.nome.toLowerCase().includes(search) ||
         entry.gerente.toLowerCase().includes(search) ||
         entry.diretor.toLowerCase().includes(search);
-      return matchDirector && matchSearch;
+      return entry.status !== 'CANDIDATO INATIVO' && matchDirector && matchSearch;
     });
     const turnoverMonths = new Set<string>();
     turnoverBase.forEach((entry) => {
