@@ -119,6 +119,27 @@ const getMonthBounds = (monthKey: string) => {
   };
 };
 
+const LEGACY_CREDENTIAL_CUTOFF = '2026-02-02';
+const LEGACY_CREDENTIAL_EFFECTIVE_DATE = '2026-02-01';
+
+const getEffectiveCredentialDate = (dateValue: string) => {
+  const credentialDate = parseIsoDate(dateValue);
+  const cutoffDate = parseIsoDate(LEGACY_CREDENTIAL_CUTOFF);
+  const effectiveDate = parseIsoDate(LEGACY_CREDENTIAL_EFFECTIVE_DATE);
+
+  if (!credentialDate) return null;
+  if (cutoffDate && effectiveDate && credentialDate < cutoffDate) {
+    return effectiveDate;
+  }
+  return credentialDate;
+};
+
+const monthFromEffectiveCredentialDate = (dateValue: string) => {
+  const date = getEffectiveCredentialDate(dateValue);
+  if (!date) return '';
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
 const isBrokerActiveInMonth = (entry: BrokerProfileEntry, monthKey: string) => {
   if (entry.status === 'CANDIDATO INATIVO') return false;
 
@@ -127,7 +148,7 @@ const isBrokerActiveInMonth = (entry: BrokerProfileEntry, monthKey: string) => {
   }
 
   const bounds = getMonthBounds(monthKey);
-  const credentialDate = parseIsoDate(entry.dataCredenciamento);
+  const credentialDate = getEffectiveCredentialDate(entry.dataCredenciamento);
   const exitDate = parseIsoDate(entry.dataDescredenciamento);
   if (!bounds || !credentialDate) return false;
 
@@ -935,7 +956,8 @@ export default function App() {
     });
     const turnoverMonths = new Set<string>();
     turnoverBase.forEach((entry) => {
-      if (entry.dataCredenciamento) turnoverMonths.add(monthFromDate(entry.dataCredenciamento));
+      const credentialMonth = monthFromEffectiveCredentialDate(entry.dataCredenciamento);
+      if (credentialMonth) turnoverMonths.add(credentialMonth);
       if (entry.dataDescredenciamento) turnoverMonths.add(monthFromDate(entry.dataDescredenciamento));
     });
     const selectedTurnoverMonths =
@@ -945,7 +967,7 @@ export default function App() {
     const turnoverData = selectedTurnoverMonths
       .map((month) => {
         const contratados = turnoverBase.filter(
-          (entry) => monthFromDate(entry.dataCredenciamento) === month,
+          (entry) => monthFromEffectiveCredentialDate(entry.dataCredenciamento) === month,
         ).length;
         const sairam = turnoverBase.filter(
           (entry) => monthFromDate(entry.dataDescredenciamento) === month,
