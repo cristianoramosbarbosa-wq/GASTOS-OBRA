@@ -19,10 +19,17 @@ Adicione estas variáveis no projeto da Vercel:
 SUPABASE_URL=https://seu-projeto.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key_do_supabase
 SUPABASE_EXPENSES_TABLE=obra_expenses
+APP_PASSWORD=defina_uma_senha_forte
+AUTH_SECRET=gere_um_texto_longo_aleatorio
 ```
 
 Use a `service_role key` apenas no ambiente da Vercel. Não coloque essa chave no
 front-end.
+
+`APP_PASSWORD` é a senha para abrir o sistema.
+
+`AUTH_SECRET` é usado para assinar a sessão. Pode ser qualquer texto longo e
+aleatório, por exemplo uma frase sem espaços com mais de 32 caracteres.
 
 ## 3. Publicar
 

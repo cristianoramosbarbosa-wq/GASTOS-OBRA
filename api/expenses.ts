@@ -1,3 +1,5 @@
+import { isValidSession } from '../server/auth.js';
+
 type Category =
   | 'Materiais'
   | 'Mao de obra'
@@ -128,6 +130,10 @@ const supabaseRequest = async (path: string, init?: RequestInit) => {
 
 export default async function handler(request: any, response: any) {
   try {
+    if (!isValidSession(request.headers.cookie)) {
+      return json(response, 401, { error: 'Acesso não autorizado.' });
+    }
+
     if (request.method === 'GET') {
       const rows = (await supabaseRequest(
         `${tableName}?select=*&order=payment_date.asc,installment_number.asc`,
