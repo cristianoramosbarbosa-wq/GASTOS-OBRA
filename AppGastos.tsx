@@ -282,6 +282,7 @@ function AppGastos() {
   const [form, setForm] = useState<ExpenseForm>(emptyExpense);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [monthFilter, setMonthFilter] = useState<string | 'Todos'>('Todos');
   const [categoryFilter, setCategoryFilter] = useState<Category | 'Todas'>('Todas');
   const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'Todas'>('Todas');
 
@@ -371,29 +372,47 @@ function AppGastos() {
     setAuthenticated(false);
   };
 
+  const monthOptions = useMemo(
+    () =>
+      Array.from(new Set(expenses.map((expense) => monthKey(expense.paymentDate))))
+        .sort((a, b) => a.localeCompare(b))
+        .map((month) => ({
+          value: month,
+          label: formatMonth(month),
+        })),
+    [expenses],
+  );
+
+  const scopedExpenses = useMemo(
+    () =>
+      monthFilter === 'Todos'
+        ? expenses
+        : expenses.filter((expense) => monthKey(expense.paymentDate) === monthFilter),
+    [expenses, monthFilter],
+  );
+
   const totals = useMemo(() => {
-    const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const paid = expenses
+    const total = scopedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const paid = scopedExpenses
       .filter(isPaid)
       .reduce((sum, expense) => sum + expense.amount, 0);
-    const currentMonth = monthKey(today);
-    const dueThisMonth = expenses
-      .filter((expense) => !isPaid(expense) && monthKey(expense.paymentDate) === currentMonth)
+    const pending = scopedExpenses
+      .filter((expense) => !isPaid(expense))
       .reduce((sum, expense) => sum + expense.amount, 0);
-    const overdue = expenses
+    const overdue = scopedExpenses
       .filter((expense) => !isPaid(expense) && expense.paymentDate < today)
       .reduce((sum, expense) => sum + expense.amount, 0);
-    const future = expenses
+    const future = scopedExpenses
       .filter((expense) => !isPaid(expense) && expense.paymentDate > today)
       .reduce((sum, expense) => sum + expense.amount, 0);
 
-    return { total, paid, dueThisMonth, overdue, future };
-  }, [expenses]);
+    return { total, paid, pending, overdue, future };
+  }, [scopedExpenses]);
 
   const filteredExpenses = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    return expenses
+    return scopedExpenses
       .filter((expense) =>
         categoryFilter === 'Todas' ? true : expense.category === categoryFilter,
       )
@@ -415,23 +434,23 @@ function AppGastos() {
           .includes(normalizedSearch);
       })
       .sort((a, b) => a.paymentDate.localeCompare(b.paymentDate));
-  }, [categoryFilter, expenses, methodFilter, search]);
+  }, [categoryFilter, methodFilter, scopedExpenses, search]);
 
   const categoryData = useMemo(
     () =>
       categories
         .map((category) => ({
           category,
-          value: expenses
+          value: scopedExpenses
             .filter((expense) => expense.category === category)
             .reduce((sum, expense) => sum + expense.amount, 0),
         }))
         .filter((item) => item.value > 0),
-    [expenses],
+    [scopedExpenses],
   );
 
   const monthData = useMemo(() => {
-    const grouped = expenses.reduce<Record<string, { paid: number; pending: number }>>((acc, expense) => {
+    const grouped = scopedExpenses.reduce<Record<string, { paid: number; pending: number }>>((acc, expense) => {
       const key = monthKey(expense.paymentDate);
       acc[key] = acc[key] ?? { paid: 0, pending: 0 };
       if (isPaid(expense)) {
@@ -451,7 +470,7 @@ function AppGastos() {
         pending: value.pending,
         total: value.paid + value.pending,
       }));
-  }, [expenses]);
+  }, [scopedExpenses]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -654,6 +673,27 @@ function AppGastos() {
       </section>
 
       <div className="mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:px-6 lg:px-8">
+        <section className="flex flex-col justify-between gap-3 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-wide text-zinc-500">Filtro mensal</h2>
+            <p className="mt-1 text-sm font-medium text-zinc-500">
+              Escolha um mês para filtrar totais, gráficos e parcelas.
+            </p>
+          </div>
+          <select
+            value={monthFilter}
+            onChange={(event) => setMonthFilter(event.target.value as string | 'Todos')}
+            className="geo-input min-w-48 text-sm"
+          >
+            <option value="Todos">Todos os meses</option>
+            {monthOptions.map((month) => (
+              <option key={month.value} value={month.value}>
+                {month.label}
+              </option>
+            ))}
+          </select>
+        </section>
+
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             icon={WalletCards}
@@ -663,9 +703,9 @@ function AppGastos() {
           />
           <MetricCard
             icon={CalendarDays}
-            label="A pagar este mes"
-            value={formatCurrency(totals.dueThisMonth)}
-            detail="Parcelas em aberto no mes atual"
+            label="A pagar"
+            value={formatCurrency(totals.pending)}
+            detail={monthFilter === 'Todos' ? 'Parcelas em aberto' : `Em aberto em ${formatMonth(monthFilter)}`}
           />
           <MetricCard
             icon={AlertTriangle}
