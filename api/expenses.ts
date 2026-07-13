@@ -121,7 +121,9 @@ const supabaseRequest = async (path: string, init?: RequestInit) => {
   }
 
   if (response.status === 204) return null;
-  return response.json();
+
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 };
 
 export default async function handler(request: any, response: any) {
