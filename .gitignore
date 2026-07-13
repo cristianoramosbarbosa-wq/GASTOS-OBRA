@@ -5,5 +5,6 @@ dist/
 *.log
 _tmp_*
 tmp/
+data/
 package-lock.json
 googleSheets.ts
