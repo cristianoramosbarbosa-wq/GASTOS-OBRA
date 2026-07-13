@@ -25,6 +25,7 @@ interface Expense {
   totalAmount: number;
   paymentMethod: PaymentMethod;
   cardName: string;
+  paid: boolean;
   installmentMode: InstallmentMode;
   installmentNumber: number;
   totalInstallments: number;
@@ -43,6 +44,7 @@ interface ExpenseRow {
   total_amount: number;
   payment_method: PaymentMethod;
   card_name: string;
+  paid: boolean;
   installment_mode: InstallmentMode;
   installment_number: number;
   total_installments: number;
@@ -71,6 +73,7 @@ const toExpense = (row: ExpenseRow): Expense => ({
   totalAmount: Number(row.total_amount),
   paymentMethod: row.payment_method,
   cardName: row.card_name || '',
+  paid: Boolean(row.paid),
   installmentMode: row.installment_mode,
   installmentNumber: Number(row.installment_number),
   totalInstallments: Number(row.total_installments),
@@ -89,6 +92,7 @@ const toRow = (expense: Expense): ExpenseRow => ({
   total_amount: expense.totalAmount,
   payment_method: expense.paymentMethod,
   card_name: expense.cardName || '',
+  paid: Boolean(expense.paid || expense.paymentMethod === 'PIX'),
   installment_mode: expense.installmentMode,
   installment_number: expense.installmentNumber,
   total_installments: expense.totalInstallments,

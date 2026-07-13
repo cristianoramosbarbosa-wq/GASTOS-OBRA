@@ -10,6 +10,7 @@ create table if not exists public.obra_expenses (
   total_amount numeric(12, 2) not null,
   payment_method text not null,
   card_name text not null default '',
+  paid boolean not null default false,
   installment_mode text not null,
   installment_number integer not null,
   total_installments integer not null,
@@ -19,6 +20,9 @@ create table if not exists public.obra_expenses (
 
 alter table public.obra_expenses
 add column if not exists card_name text not null default '';
+
+alter table public.obra_expenses
+add column if not exists paid boolean not null default false;
 
 alter table public.obra_expenses enable row level security;
 

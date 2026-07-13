@@ -54,6 +54,7 @@ interface Expense {
   totalAmount: number;
   paymentMethod: PaymentMethod;
   cardName: string;
+  paid: boolean;
   installmentMode: InstallmentMode;
   installmentNumber: number;
   totalInstallments: number;
@@ -227,6 +228,7 @@ const normalizeExpenses = (items: unknown): Expense[] => {
           ? (item.paymentMethod as PaymentMethod)
           : 'PIX',
         cardName: String(item.cardName ?? ''),
+        paid: Boolean(item.paid ?? item.paymentMethod === 'PIX'),
         installmentMode:
           item.installmentMode === 'Parcelado' || totalInstallments > 1
             ? 'Parcelado'
@@ -259,6 +261,7 @@ const buildInstallments = (form: ExpenseForm, existingGroupId?: string) => {
     cardName: ['Credito', 'Debito'].includes(form.paymentMethod)
       ? form.cardName.trim()
       : '',
+    paid: form.paymentMethod === 'PIX',
     installmentMode: form.installmentMode,
     installmentNumber: index + 1,
     totalInstallments,
@@ -266,7 +269,7 @@ const buildInstallments = (form: ExpenseForm, existingGroupId?: string) => {
   }));
 };
 
-const isPaid = (expense: Expense) => expense.paymentMethod === 'PIX';
+const isPaid = (expense: Expense) => expense.paymentMethod === 'PIX' || expense.paid;
 
 function AppGastos() {
   const [expenses, setExpenses] = useState<Expense[]>(loadSavedExpenses);
@@ -428,9 +431,14 @@ function AppGastos() {
   );
 
   const monthData = useMemo(() => {
-    const grouped = expenses.filter((expense) => !isPaid(expense)).reduce<Record<string, number>>((acc, expense) => {
+    const grouped = expenses.reduce<Record<string, { paid: number; pending: number }>>((acc, expense) => {
       const key = monthKey(expense.paymentDate);
-      acc[key] = (acc[key] ?? 0) + expense.amount;
+      acc[key] = acc[key] ?? { paid: 0, pending: 0 };
+      if (isPaid(expense)) {
+        acc[key].paid += expense.amount;
+      } else {
+        acc[key].pending += expense.amount;
+      }
       return acc;
     }, {});
 
@@ -439,7 +447,9 @@ function AppGastos() {
       .map(([month, value]) => ({
         month,
         label: formatMonth(month),
-        value,
+        paid: value.paid,
+        pending: value.pending,
+        total: value.paid + value.pending,
       }));
   }, [expenses]);
 
@@ -450,7 +460,17 @@ function AppGastos() {
       return;
     }
 
-    const installments = buildInstallments(form, editingGroupId ?? undefined);
+    const installments = buildInstallments(form, editingGroupId ?? undefined).map((installment) => {
+      const previousInstallment = expenses.find(
+        (expense) =>
+          expense.groupId === editingGroupId &&
+          expense.installmentNumber === installment.installmentNumber,
+      );
+
+      return previousInstallment
+        ? { ...installment, id: previousInstallment.id, paid: previousInstallment.paid }
+        : installment;
+    });
 
     if (editingGroupId) {
       persistExpenses([
@@ -490,6 +510,16 @@ function AppGastos() {
     }
   };
 
+  const toggleExpensePaid = (id: string) => {
+    persistExpenses(
+      expenses.map((expense) =>
+        expense.id === id
+          ? { ...expense, paid: !isPaid(expense) }
+          : expense,
+      ),
+    );
+  };
+
   const exportCsv = () => {
     const header = [
       'Data da compra',
@@ -500,6 +530,7 @@ function AppGastos() {
       'Etapa',
       'Forma de pagamento',
       'Cartao',
+      'Status',
       'Parcela',
       'Valor da parcela',
       'Valor total',
@@ -513,6 +544,7 @@ function AppGastos() {
       expense.phase,
       expense.paymentMethod,
       expense.cardName,
+      isPaid(expense) ? 'Pago' : 'A pagar',
       `${expense.installmentNumber}/${expense.totalInstallments}`,
       String(expense.amount).replace('.', ','),
       String(expense.totalAmount).replace('.', ','),
@@ -631,9 +663,9 @@ function AppGastos() {
           />
           <MetricCard
             icon={CalendarDays}
-            label="Vence este mes"
+            label="A pagar este mes"
             value={formatCurrency(totals.dueThisMonth)}
-            detail="Parcelas previstas no mes atual"
+            detail="Parcelas em aberto no mes atual"
           />
           <MetricCard
             icon={AlertTriangle}
@@ -646,15 +678,15 @@ function AppGastos() {
             icon={CheckCircle2}
             label="Pago"
             value={formatCurrency(totals.paid)}
-            detail="PIX considerado pago automaticamente"
+            detail="PIX e parcelas marcadas como pagas"
           />
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
           <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-5">
-              <h2 className="text-lg font-black text-zinc-950">Previsao de pagamentos</h2>
-              <p className="text-sm font-medium text-zinc-500">Parcelas agrupadas pela data de pagamento.</p>
+              <h2 className="text-lg font-black text-zinc-950">Pago x a pagar por mes</h2>
+              <p className="text-sm font-medium text-zinc-500">Verde mostra o que ja foi pago; vermelho mostra o previsto em aberto.</p>
             </div>
 
             <div className="h-80">
@@ -665,7 +697,8 @@ function AppGastos() {
                   <YAxis tickFormatter={(value) => `${Number(value) / 1000}k`} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                   <Legend />
-                  <Bar dataKey="value" name="A pagar" fill="#eb194b" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="paid" stackId="month" name="Pago" fill="#16a34a" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="pending" stackId="month" name="A pagar" fill="#eb194b" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -924,7 +957,7 @@ function AppGastos() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] text-left text-sm">
+              <table className="w-full min-w-[1020px] text-left text-sm">
                 <thead className="border-y border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <tr>
                     <th className="px-3 py-3">Pagamento</th>
@@ -933,6 +966,7 @@ function AppGastos() {
                     <th className="px-3 py-3">Forma</th>
                     <th className="px-3 py-3">Parcela</th>
                     <th className="px-3 py-3 text-right">Valor</th>
+                    <th className="px-3 py-3">Status</th>
                     <th className="px-3 py-3 text-right">Acoes</th>
                   </tr>
                 </thead>
@@ -976,6 +1010,25 @@ function AppGastos() {
                         {expense.installmentNumber}/{expense.totalInstallments}
                       </td>
                       <td className="px-3 py-4 text-right font-black">{formatCurrency(expense.amount)}</td>
+                      <td className="px-3 py-4">
+                        {expense.paymentMethod === 'PIX' ? (
+                          <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-black text-emerald-700">
+                            Pago no PIX
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpensePaid(expense.id)}
+                            className={`rounded-md px-3 py-2 text-xs font-black transition ${
+                              isPaid(expense)
+                                ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                : 'bg-red-50 text-red-700 hover:bg-red-100'
+                            }`}
+                          >
+                            {isPaid(expense) ? 'Pago' : 'Marcar pago'}
+                          </button>
+                        )}
+                      </td>
                       <td className="px-3 py-4">
                         <div className="flex justify-end gap-2">
                           <button
