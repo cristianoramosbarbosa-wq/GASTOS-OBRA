@@ -272,11 +272,15 @@ const buildInstallments = (form: ExpenseForm, existingGroupId?: string) => {
 
 const isPaid = (expense: Expense) => expense.paymentMethod === 'PIX' || expense.paid;
 
+const expensesTotal = (items: Expense[]) =>
+  items.reduce((sum, expense) => sum + expense.amount, 0);
+
 function AppGastos() {
   const [expenses, setExpenses] = useState<Expense[]>(loadSavedExpenses);
   const [sharedMode, setSharedMode] = useState(false);
   const [syncMessage, setSyncMessage] = useState('Dados salvos neste navegador.');
   const [lastSync, setLastSync] = useState('');
+  const [localBackup, setLocalBackup] = useState<Expense[] | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
@@ -307,6 +311,19 @@ function AppGastos() {
       .then((sharedExpenses) => {
         setSharedMode(true);
         setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        const localExpenses = loadSavedExpenses();
+        const localLooksNewer =
+          localExpenses.length > sharedExpenses.length ||
+          expensesTotal(localExpenses) > expensesTotal(sharedExpenses) + 1;
+
+        if (localLooksNewer) {
+          setLocalBackup(localExpenses);
+          setExpenses(localExpenses);
+          setSyncMessage('Há dados deste navegador para enviar à nuvem.');
+          return;
+        }
+
+        setLocalBackup(null);
         setSyncMessage('Dados compartilhados ativos.');
 
         if (sharedExpenses.length > 0) {
@@ -315,7 +332,6 @@ function AppGastos() {
           return;
         }
 
-        const localExpenses = loadSavedExpenses();
         if (localExpenses.length > 0) {
           saveSharedExpenses(localExpenses).catch(() => undefined);
         }
@@ -374,6 +390,19 @@ function AppGastos() {
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST', credentials: 'include' });
     setAuthenticated(false);
+  };
+
+  const uploadLocalBackup = async () => {
+    if (!localBackup) return;
+
+    setSyncMessage('Enviando dados locais para a nuvem...');
+    await saveSharedExpenses(localBackup);
+    setExpenses(localBackup);
+    window.localStorage.setItem(storageKey, JSON.stringify(localBackup));
+    setLocalBackup(null);
+    setSharedMode(true);
+    setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+    setSyncMessage('Dados locais enviados para a nuvem.');
   };
 
   const monthOptions = useMemo(
@@ -664,6 +693,15 @@ function AppGastos() {
               <RefreshCw size={18} />
               Atualizar
             </button>
+            {localBackup && (
+              <button
+                type="button"
+                onClick={uploadLocalBackup}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
+              >
+                Enviar dados locais para nuvem
+              </button>
+            )}
             <button
               type="button"
               onClick={exportCsv}
