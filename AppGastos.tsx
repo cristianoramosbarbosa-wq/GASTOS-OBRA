@@ -183,7 +183,10 @@ const saveSharedExpenses = async (expenses: Expense[]) => {
     body: JSON.stringify({ expenses }),
   });
 
-  if (!response.ok) throw new Error('Nao foi possivel salvar os dados compartilhados.');
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || 'Nao foi possivel salvar os dados compartilhados.');
+  }
 };
 
 const loadSavedExpenses = () => {
@@ -405,24 +408,38 @@ function AppGastos() {
   const uploadLocalBackup = async () => {
     if (!localBackup) return;
 
-    setSyncMessage('Enviando dados locais para a nuvem...');
-    await saveSharedExpenses(localBackup);
-    setExpenses(localBackup);
-    window.localStorage.setItem(storageKey, JSON.stringify(localBackup));
-    setLocalBackup(null);
-    setSharedMode(true);
-    setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-    setSyncMessage('Dados locais enviados para a nuvem.');
+    try {
+      setSyncMessage('Enviando dados locais para a nuvem...');
+      await saveSharedExpenses(localBackup);
+      setExpenses(localBackup);
+      window.localStorage.setItem(storageKey, JSON.stringify(localBackup));
+      setLocalBackup(null);
+      setSharedMode(true);
+      setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      setSyncMessage('Dados locais enviados para a nuvem.');
+      window.alert('Pronto: os dados locais foram enviados para a nuvem.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido.';
+      setSyncMessage(`Erro ao enviar para a nuvem: ${message}`);
+      window.alert(`Nao consegui enviar para a nuvem.\n\n${message}`);
+    }
   };
 
   const uploadCurrentExpenses = async () => {
-    setSyncMessage('Enviando estes dados para a nuvem...');
-    await saveSharedExpenses(expenses);
-    window.localStorage.setItem(storageKey, JSON.stringify(expenses));
-    setLocalBackup(null);
-    setSharedMode(true);
-    setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-    setSyncMessage('Estes dados foram enviados para a nuvem.');
+    try {
+      setSyncMessage('Enviando estes dados para a nuvem...');
+      await saveSharedExpenses(expenses);
+      window.localStorage.setItem(storageKey, JSON.stringify(expenses));
+      setLocalBackup(null);
+      setSharedMode(true);
+      setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      setSyncMessage('Estes dados foram enviados para a nuvem.');
+      window.alert(`Pronto: ${expenses.length} parcelas foram enviadas para a nuvem.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido.';
+      setSyncMessage(`Erro ao enviar para a nuvem: ${message}`);
+      window.alert(`Nao consegui enviar estes dados para a nuvem.\n\n${message}`);
+    }
   };
 
   const monthOptions = useMemo(
