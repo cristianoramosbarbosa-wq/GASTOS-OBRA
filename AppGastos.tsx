@@ -10,6 +10,7 @@ import {
   LogOut,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   Trash2,
   WalletCards,
@@ -164,7 +165,7 @@ const getStoredValue = <T,>(key: string, fallback: T): T => {
 };
 
 const loadSharedExpenses = async () => {
-  const response = await fetch('/api/expenses', {
+  const response = await fetch(`/api/expenses?ts=${Date.now()}`, {
     cache: 'no-store',
     credentials: 'include',
   });
@@ -275,6 +276,7 @@ function AppGastos() {
   const [expenses, setExpenses] = useState<Expense[]>(loadSavedExpenses);
   const [sharedMode, setSharedMode] = useState(false);
   const [syncMessage, setSyncMessage] = useState('Dados salvos neste navegador.');
+  const [lastSync, setLastSync] = useState('');
   const [authLoading, setAuthLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
@@ -292,6 +294,7 @@ function AppGastos() {
     saveSharedExpenses(nextExpenses)
       .then(() => {
         setSharedMode(true);
+        setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
         setSyncMessage('Dados compartilhados salvos.');
       })
       .catch(() => {
@@ -299,25 +302,11 @@ function AppGastos() {
       });
   };
 
-  useEffect(() => {
-    fetch('/api/session', { cache: 'no-store', credentials: 'include' })
-      .then((response) => (response.ok ? response.json() : { authenticated: false }))
-      .then((payload) => setAuthenticated(Boolean(payload.authenticated)))
-      .catch(() => setAuthenticated(false))
-      .finally(() => setAuthLoading(false));
-  }, []);
-
-  useEffect(() => {
-    if (!authenticated) return undefined;
-
-    let ignore = false;
-
-    const syncFromServer = () =>
-      loadSharedExpenses()
+  const syncFromServer = () =>
+    loadSharedExpenses()
       .then((sharedExpenses) => {
-        if (ignore) return;
-
         setSharedMode(true);
+        setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
         setSyncMessage('Dados compartilhados ativos.');
 
         if (sharedExpenses.length > 0) {
@@ -332,18 +321,33 @@ function AppGastos() {
         }
       })
       .catch(() => {
-        if (!ignore) {
-          setSharedMode(false);
-          setSyncMessage('Dados salvos neste navegador.');
-        }
+        setSharedMode(false);
+        setSyncMessage('Dados salvos neste navegador.');
       });
 
+  useEffect(() => {
+    fetch('/api/session', { cache: 'no-store', credentials: 'include' })
+      .then((response) => (response.ok ? response.json() : { authenticated: false }))
+      .then((payload) => setAuthenticated(Boolean(payload.authenticated)))
+      .catch(() => setAuthenticated(false))
+      .finally(() => setAuthLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!authenticated) return undefined;
+
     syncFromServer();
-    const interval = window.setInterval(syncFromServer, 10000);
+    const interval = window.setInterval(syncFromServer, 5000);
+    const syncWhenVisible = () => {
+      if (document.visibilityState === 'visible') syncFromServer();
+    };
+    window.addEventListener('focus', syncFromServer);
+    document.addEventListener('visibilitychange', syncWhenVisible);
 
     return () => {
-      ignore = true;
       window.clearInterval(interval);
+      window.removeEventListener('focus', syncFromServer);
+      document.removeEventListener('visibilitychange', syncWhenVisible);
     };
   }, [authenticated]);
 
@@ -648,10 +652,18 @@ function AppGastos() {
                 Inclua uma compra, informe a forma de pagamento e o sistema cria automaticamente as parcelas nos meses seguintes.
               </p>
               <p className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide ${sharedMode ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                {syncMessage}
+                {syncMessage}{lastSync ? ` ${lastSync}` : ''}
               </p>
             </div>
 
+            <button
+              type="button"
+              onClick={syncFromServer}
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 transition hover:border-lopes-red hover:text-lopes-red"
+            >
+              <RefreshCw size={18} />
+              Atualizar
+            </button>
             <button
               type="button"
               onClick={exportCsv}
