@@ -319,7 +319,17 @@ function AppGastos() {
         if (localLooksNewer) {
           setLocalBackup(localExpenses);
           setExpenses(localExpenses);
-          setSyncMessage('Há dados deste navegador para enviar à nuvem.');
+          setSyncMessage('Enviando dados deste computador para a nuvem...');
+          saveSharedExpenses(localExpenses)
+            .then(() => {
+              setLocalBackup(null);
+              setSharedMode(true);
+              setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+              setSyncMessage('Dados deste computador enviados para a nuvem.');
+            })
+            .catch(() => {
+              setSyncMessage('Ha dados deste navegador para enviar a nuvem.');
+            });
           return;
         }
 
