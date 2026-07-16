@@ -405,6 +405,16 @@ function AppGastos() {
     setSyncMessage('Dados locais enviados para a nuvem.');
   };
 
+  const uploadCurrentExpenses = async () => {
+    setSyncMessage('Enviando estes dados para a nuvem...');
+    await saveSharedExpenses(expenses);
+    window.localStorage.setItem(storageKey, JSON.stringify(expenses));
+    setLocalBackup(null);
+    setSharedMode(true);
+    setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+    setSyncMessage('Estes dados foram enviados para a nuvem.');
+  };
+
   const monthOptions = useMemo(
     () =>
       Array.from(new Set(expenses.map((expense) => monthKey(expense.paymentDate))))
@@ -685,39 +695,50 @@ function AppGastos() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={syncFromServer}
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 transition hover:border-lopes-red hover:text-lopes-red"
-            >
-              <RefreshCw size={18} />
-              Atualizar
-            </button>
-            {localBackup && (
+            <div className="flex flex-col gap-3 sm:flex-row lg:flex-wrap lg:justify-end">
               <button
                 type="button"
-                onClick={uploadLocalBackup}
-                className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
+                onClick={syncFromServer}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 transition hover:border-lopes-red hover:text-lopes-red"
               >
-                Enviar dados locais para nuvem
+                <RefreshCw size={18} />
+                Atualizar
               </button>
-            )}
-            <button
-              type="button"
-              onClick={exportCsv}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-zinc-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-lopes-red"
-            >
-              <Download size={18} />
-              Exportar CSV
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 transition hover:border-lopes-red hover:text-lopes-red"
-            >
-              <LogOut size={18} />
-              Sair
-            </button>
+              {expenses.length > 0 && (
+                <button
+                  type="button"
+                  onClick={uploadCurrentExpenses}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-700"
+                >
+                  Enviar estes dados para nuvem
+                </button>
+              )}
+              {localBackup && (
+                <button
+                  type="button"
+                  onClick={uploadLocalBackup}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-800"
+                >
+                  Enviar dados locais para nuvem
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={exportCsv}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-zinc-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-lopes-red"
+              >
+                <Download size={18} />
+                Exportar CSV
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 transition hover:border-lopes-red hover:text-lopes-red"
+              >
+                <LogOut size={18} />
+                Sair
+              </button>
+            </div>
           </div>
         </div>
       </section>
