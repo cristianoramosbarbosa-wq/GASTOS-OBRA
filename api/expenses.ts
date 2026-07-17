@@ -104,6 +104,35 @@ const withoutPaid = (row: ExpenseRow) => {
   return rowWithoutPaid;
 };
 
+const isMissingPaidColumnError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : '';
+  return message.includes('PGRST204') && message.includes("'paid'");
+};
+
+const insertRows = async (rows: ExpenseRow[]) => {
+  try {
+    await supabaseRequest(`${tableName}?on_conflict=id`, {
+      method: 'POST',
+      headers: {
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify(rows),
+    });
+  } catch (error) {
+    if (!isMissingPaidColumnError(error)) {
+      throw error;
+    }
+
+    await supabaseRequest(`${tableName}?on_conflict=id`, {
+      method: 'POST',
+      headers: {
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify(rows.map(withoutPaid)),
+    });
+  }
+};
+
 const json = (response: any, status: number, payload: unknown) => {
   response.setHeader('Cache-Control', 'no-store');
   return response.status(status).json(payload);
@@ -163,31 +192,49 @@ export default async function handler(request: any, response: any) {
 
       if (expenses.length > 0) {
         const rows = expenses.map(toRow);
-
-        try {
-          await supabaseRequest(tableName, {
-            method: 'POST',
-            headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify(rows),
-          });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : '';
-          const isMissingPaidColumn =
-            message.includes('PGRST204') && message.includes("'paid'");
-
-          if (!isMissingPaidColumn) {
-            throw error;
-          }
-
-          await supabaseRequest(tableName, {
-            method: 'POST',
-            headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify(rows.map(withoutPaid)),
-          });
-        }
+        await insertRows(rows);
       }
 
       return json(response, 200, { ok: true, expenses });
+    }
+
+    if (request.method === 'PATCH') {
+      const expenses = Array.isArray(request.body?.expenses)
+        ? (request.body.expenses as Expense[])
+        : [];
+      const replaceGroupId =
+        typeof request.body?.replaceGroupId === 'string'
+          ? request.body.replaceGroupId
+          : '';
+
+      if (replaceGroupId) {
+        await supabaseRequest(`${tableName}?group_id=eq.${encodeURIComponent(replaceGroupId)}`, {
+          method: 'DELETE',
+          headers: { Prefer: 'return=minimal' },
+        });
+      }
+
+      if (expenses.length > 0) {
+        await insertRows(expenses.map(toRow));
+      }
+
+      return json(response, 200, { ok: true, expenses });
+    }
+
+    if (request.method === 'DELETE') {
+      const groupId =
+        typeof request.body?.groupId === 'string' ? request.body.groupId : '';
+
+      if (!groupId) {
+        return json(response, 400, { error: 'Informe o grupo da despesa.' });
+      }
+
+      await supabaseRequest(`${tableName}?group_id=eq.${encodeURIComponent(groupId)}`, {
+        method: 'DELETE',
+        headers: { Prefer: 'return=minimal' },
+      });
+
+      return json(response, 200, { ok: true });
     }
 
     return json(response, 405, { error: 'Metodo nao permitido.' });

@@ -189,6 +189,34 @@ const saveSharedExpenses = async (expenses: Expense[]) => {
   }
 };
 
+const patchSharedExpenses = async (expenses: Expense[], replaceGroupId?: string) => {
+  const response = await fetch('/api/expenses', {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expenses, replaceGroupId }),
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || 'Nao foi possivel atualizar os dados compartilhados.');
+  }
+};
+
+const deleteSharedExpenseGroup = async (groupId: string) => {
+  const response = await fetch('/api/expenses', {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ groupId }),
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || 'Nao foi possivel excluir a despesa compartilhada.');
+  }
+};
+
 const loadSavedExpenses = () => {
   const previousSaved = getStoredValue<unknown>('obra-expenses', null);
   const currentSaved = getStoredValue<unknown>(storageKey, null);
@@ -295,18 +323,9 @@ function AppGastos() {
   const [categoryFilter, setCategoryFilter] = useState<Category | 'Todas'>('Todas');
   const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'Todas'>('Todas');
 
-  const persistExpenses = (nextExpenses: Expense[]) => {
+  const persistLocalExpenses = (nextExpenses: Expense[]) => {
     setExpenses(nextExpenses);
     window.localStorage.setItem(storageKey, JSON.stringify(nextExpenses));
-    saveSharedExpenses(nextExpenses)
-      .then(() => {
-        setSharedMode(true);
-        setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-        setSyncMessage('Dados compartilhados salvos.');
-      })
-      .catch(() => {
-        setSyncMessage('Sem servidor compartilhado: dados salvos neste navegador.');
-      });
   };
 
   const syncFromServer = () =>
@@ -315,39 +334,23 @@ function AppGastos() {
         setSharedMode(true);
         setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
         const localExpenses = loadSavedExpenses();
-        const localLooksNewer =
-          localExpenses.length > sharedExpenses.length ||
-          expensesTotal(localExpenses) > expensesTotal(sharedExpenses) + 1;
-
-        if (localLooksNewer) {
-          setLocalBackup(localExpenses);
-          setExpenses(localExpenses);
-          setSyncMessage('Enviando dados deste computador para a nuvem...');
-          saveSharedExpenses(localExpenses)
-            .then(() => {
-              setLocalBackup(null);
-              setSharedMode(true);
-              setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-              setSyncMessage('Dados deste computador enviados para a nuvem.');
-            })
-            .catch(() => {
-              setSyncMessage('Ha dados deste navegador para enviar a nuvem.');
-            });
-          return;
-        }
-
-        setLocalBackup(null);
-        setSyncMessage('Dados compartilhados ativos.');
-
         if (sharedExpenses.length > 0) {
+          setLocalBackup(null);
+          setSyncMessage('Dados compartilhados ativos.');
           setExpenses(sharedExpenses);
           window.localStorage.setItem(storageKey, JSON.stringify(sharedExpenses));
           return;
         }
 
         if (localExpenses.length > 0) {
-          saveSharedExpenses(localExpenses).catch(() => undefined);
+          setLocalBackup(localExpenses);
+          setExpenses(localExpenses);
+          setSyncMessage('Ha dados deste navegador para enviar a nuvem.');
+          return;
         }
+
+        setLocalBackup(null);
+        setSyncMessage('Dados compartilhados ativos.');
       })
       .catch(() => {
         setSharedMode(false);
@@ -542,7 +545,7 @@ function AppGastos() {
       }));
   }, [scopedExpenses]);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!form.description.trim() || !form.supplier.trim() || form.totalAmount <= 0) {
@@ -562,13 +565,38 @@ function AppGastos() {
     });
 
     if (editingGroupId) {
-      persistExpenses([
+      const nextExpenses = [
         ...expenses.filter((expense) => expense.groupId !== editingGroupId),
         ...installments,
-      ]);
+      ];
+      persistLocalExpenses(nextExpenses);
+      setSyncMessage('Atualizando despesa na nuvem...');
+      patchSharedExpenses(installments, editingGroupId)
+        .then(() => {
+          setSharedMode(true);
+          setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+          setSyncMessage('Despesa atualizada na nuvem.');
+          syncFromServer();
+        })
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : 'Erro desconhecido.';
+          setSyncMessage(`Erro ao atualizar na nuvem: ${message}`);
+        });
       setEditingGroupId(null);
     } else {
-      persistExpenses([...expenses, ...installments]);
+      persistLocalExpenses([...expenses, ...installments]);
+      setSyncMessage('Incluindo despesa na nuvem...');
+      patchSharedExpenses(installments)
+        .then(() => {
+          setSharedMode(true);
+          setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+          setSyncMessage('Despesa incluida na nuvem.');
+          syncFromServer();
+        })
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : 'Erro desconhecido.';
+          setSyncMessage(`Erro ao incluir na nuvem: ${message}`);
+        });
     }
 
     setForm(emptyExpense);
@@ -592,7 +620,19 @@ function AppGastos() {
   };
 
   const deleteExpenseGroup = (groupId: string) => {
-    persistExpenses(expenses.filter((expense) => expense.groupId !== groupId));
+    persistLocalExpenses(expenses.filter((expense) => expense.groupId !== groupId));
+    setSyncMessage('Excluindo despesa na nuvem...');
+    deleteSharedExpenseGroup(groupId)
+      .then(() => {
+        setSharedMode(true);
+        setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        setSyncMessage('Despesa excluida na nuvem.');
+        syncFromServer();
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Erro desconhecido.';
+        setSyncMessage(`Erro ao excluir na nuvem: ${message}`);
+      });
     if (editingGroupId === groupId) {
       setEditingGroupId(null);
       setForm(emptyExpense);
@@ -600,13 +640,28 @@ function AppGastos() {
   };
 
   const toggleExpensePaid = (id: string) => {
-    persistExpenses(
-      expenses.map((expense) =>
+    const nextExpenses = expenses.map((expense) =>
         expense.id === id
           ? { ...expense, paid: !isPaid(expense) }
           : expense,
-      ),
-    );
+      );
+    const updatedExpense = nextExpenses.find((expense) => expense.id === id);
+    persistLocalExpenses(nextExpenses);
+
+    if (!updatedExpense) return;
+
+    setSyncMessage('Atualizando parcela na nuvem...');
+    patchSharedExpenses([updatedExpense])
+      .then(() => {
+        setSharedMode(true);
+        setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        setSyncMessage('Parcela atualizada na nuvem.');
+        syncFromServer();
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Erro desconhecido.';
+        setSyncMessage(`Erro ao atualizar parcela: ${message}`);
+      });
   };
 
   const exportCsv = () => {
