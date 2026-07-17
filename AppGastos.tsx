@@ -189,12 +189,16 @@ const saveSharedExpenses = async (expenses: Expense[]) => {
   }
 };
 
-const patchSharedExpenses = async (expenses: Expense[], replaceGroupId?: string) => {
+const patchSharedExpenses = async (
+  expenses: Expense[],
+  replaceGroupId?: string,
+  deleteGroupId?: string,
+) => {
   const response = await fetch('/api/expenses', {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ expenses, replaceGroupId }),
+    body: JSON.stringify({ expenses, replaceGroupId, deleteGroupId }),
   });
 
   if (!response.ok) {
@@ -204,15 +208,7 @@ const patchSharedExpenses = async (expenses: Expense[], replaceGroupId?: string)
 };
 
 const deleteSharedExpenseGroup = async (groupId: string) => {
-  const response = await fetch(`/api/expenses?groupId=${encodeURIComponent(groupId)}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(payload?.error || 'Nao foi possivel excluir a despesa compartilhada.');
-  }
+  await patchSharedExpenses([], undefined, groupId);
 };
 
 const loadSavedExpenses = () => {

@@ -206,6 +206,27 @@ export default async function handler(request: any, response: any) {
         typeof request.body?.replaceGroupId === 'string'
           ? request.body.replaceGroupId
           : '';
+      const deleteGroupId =
+        typeof request.body?.deleteGroupId === 'string'
+          ? request.body.deleteGroupId
+          : '';
+
+      if (deleteGroupId) {
+        await supabaseRequest(`${tableName}?group_id=eq.${encodeURIComponent(deleteGroupId)}`, {
+          method: 'DELETE',
+          headers: { Prefer: 'return=minimal' },
+        });
+
+        const remainingRows = (await supabaseRequest(
+          `${tableName}?select=id&group_id=eq.${encodeURIComponent(deleteGroupId)}`,
+        )) as Pick<ExpenseRow, 'id'>[];
+
+        if (remainingRows.length > 0) {
+          throw new Error('A despesa foi removida da tela, mas ainda ficou salva na nuvem.');
+        }
+
+        return json(response, 200, { ok: true, deletedGroupId: deleteGroupId });
+      }
 
       if (replaceGroupId) {
         await supabaseRequest(`${tableName}?group_id=eq.${encodeURIComponent(replaceGroupId)}`, {
