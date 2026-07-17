@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CalendarDays,
@@ -204,11 +204,9 @@ const patchSharedExpenses = async (expenses: Expense[], replaceGroupId?: string)
 };
 
 const deleteSharedExpenseGroup = async (groupId: string) => {
-  const response = await fetch('/api/expenses', {
+  const response = await fetch(`/api/expenses?groupId=${encodeURIComponent(groupId)}`, {
     method: 'DELETE',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ groupId }),
   });
 
   if (!response.ok) {
@@ -307,6 +305,7 @@ const expensesTotal = (items: Expense[]) =>
   items.reduce((sum, expense) => sum + expense.amount, 0);
 
 function AppGastos() {
+  const mutationInFlight = useRef(false);
   const [expenses, setExpenses] = useState<Expense[]>(loadSavedExpenses);
   const [sharedMode, setSharedMode] = useState(false);
   const [syncMessage, setSyncMessage] = useState('Dados salvos neste navegador.');
@@ -328,8 +327,12 @@ function AppGastos() {
     window.localStorage.setItem(storageKey, JSON.stringify(nextExpenses));
   };
 
-  const syncFromServer = () =>
-    loadSharedExpenses()
+  const syncFromServer = () => {
+    if (mutationInFlight.current) {
+      return Promise.resolve();
+    }
+
+    return loadSharedExpenses()
       .then((sharedExpenses) => {
         setSharedMode(true);
         setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
@@ -356,6 +359,7 @@ function AppGastos() {
         setSharedMode(false);
         setSyncMessage('Dados salvos neste navegador.');
       });
+  };
 
   useEffect(() => {
     fetch('/api/session', { cache: 'no-store', credentials: 'include' })
@@ -570,33 +574,37 @@ function AppGastos() {
         ...installments,
       ];
       persistLocalExpenses(nextExpenses);
-      setSyncMessage('Atualizando despesa na nuvem...');
-      patchSharedExpenses(installments, editingGroupId)
-        .then(() => {
-          setSharedMode(true);
-          setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-          setSyncMessage('Despesa atualizada na nuvem.');
-          syncFromServer();
-        })
-        .catch((error) => {
-          const message = error instanceof Error ? error.message : 'Erro desconhecido.';
-          setSyncMessage(`Erro ao atualizar na nuvem: ${message}`);
-        });
+      mutationInFlight.current = true;
+      try {
+        setSyncMessage('Atualizando despesa na nuvem...');
+        await patchSharedExpenses(installments, editingGroupId);
+        setSharedMode(true);
+        setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        setSyncMessage('Despesa atualizada na nuvem.');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Erro desconhecido.';
+        setSyncMessage(`Erro ao atualizar na nuvem: ${message}`);
+      } finally {
+        mutationInFlight.current = false;
+        syncFromServer();
+      }
       setEditingGroupId(null);
     } else {
       persistLocalExpenses([...expenses, ...installments]);
-      setSyncMessage('Incluindo despesa na nuvem...');
-      patchSharedExpenses(installments)
-        .then(() => {
-          setSharedMode(true);
-          setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-          setSyncMessage('Despesa incluida na nuvem.');
-          syncFromServer();
-        })
-        .catch((error) => {
-          const message = error instanceof Error ? error.message : 'Erro desconhecido.';
-          setSyncMessage(`Erro ao incluir na nuvem: ${message}`);
-        });
+      mutationInFlight.current = true;
+      try {
+        setSyncMessage('Incluindo despesa na nuvem...');
+        await patchSharedExpenses(installments);
+        setSharedMode(true);
+        setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        setSyncMessage('Despesa incluida na nuvem.');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Erro desconhecido.';
+        setSyncMessage(`Erro ao incluir na nuvem: ${message}`);
+      } finally {
+        mutationInFlight.current = false;
+        syncFromServer();
+      }
     }
 
     setForm(emptyExpense);
@@ -619,27 +627,29 @@ function AppGastos() {
     });
   };
 
-  const deleteExpenseGroup = (groupId: string) => {
+  const deleteExpenseGroup = async (groupId: string) => {
     persistLocalExpenses(expenses.filter((expense) => expense.groupId !== groupId));
-    setSyncMessage('Excluindo despesa na nuvem...');
-    deleteSharedExpenseGroup(groupId)
-      .then(() => {
-        setSharedMode(true);
-        setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-        setSyncMessage('Despesa excluida na nuvem.');
-        syncFromServer();
-      })
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : 'Erro desconhecido.';
-        setSyncMessage(`Erro ao excluir na nuvem: ${message}`);
-      });
+    mutationInFlight.current = true;
+    try {
+      setSyncMessage('Excluindo despesa na nuvem...');
+      await deleteSharedExpenseGroup(groupId);
+      setSharedMode(true);
+      setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      setSyncMessage('Despesa excluida na nuvem.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido.';
+      setSyncMessage(`Erro ao excluir na nuvem: ${message}`);
+    } finally {
+      mutationInFlight.current = false;
+      syncFromServer();
+    }
     if (editingGroupId === groupId) {
       setEditingGroupId(null);
       setForm(emptyExpense);
     }
   };
 
-  const toggleExpensePaid = (id: string) => {
+  const toggleExpensePaid = async (id: string) => {
     const nextExpenses = expenses.map((expense) =>
         expense.id === id
           ? { ...expense, paid: !isPaid(expense) }
@@ -650,18 +660,20 @@ function AppGastos() {
 
     if (!updatedExpense) return;
 
-    setSyncMessage('Atualizando parcela na nuvem...');
-    patchSharedExpenses([updatedExpense])
-      .then(() => {
-        setSharedMode(true);
-        setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-        setSyncMessage('Parcela atualizada na nuvem.');
-        syncFromServer();
-      })
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : 'Erro desconhecido.';
-        setSyncMessage(`Erro ao atualizar parcela: ${message}`);
-      });
+    mutationInFlight.current = true;
+    try {
+      setSyncMessage('Atualizando parcela na nuvem...');
+      await patchSharedExpenses([updatedExpense]);
+      setSharedMode(true);
+      setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      setSyncMessage('Parcela atualizada na nuvem.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido.';
+      setSyncMessage(`Erro ao atualizar parcela: ${message}`);
+    } finally {
+      mutationInFlight.current = false;
+      syncFromServer();
+    }
   };
 
   const exportCsv = () => {

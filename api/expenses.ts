@@ -223,7 +223,11 @@ export default async function handler(request: any, response: any) {
 
     if (request.method === 'DELETE') {
       const groupId =
-        typeof request.body?.groupId === 'string' ? request.body.groupId : '';
+        typeof request.query?.groupId === 'string'
+          ? request.query.groupId
+          : typeof request.body?.groupId === 'string'
+            ? request.body.groupId
+            : '';
 
       if (!groupId) {
         return json(response, 400, { error: 'Informe o grupo da despesa.' });
