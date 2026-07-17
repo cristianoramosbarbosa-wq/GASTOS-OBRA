@@ -99,6 +99,11 @@ const toRow = (expense: Expense): ExpenseRow => ({
   phase: expense.phase || '',
 });
 
+const withoutPaid = (row: ExpenseRow) => {
+  const { paid: _paid, ...rowWithoutPaid } = row;
+  return rowWithoutPaid;
+};
+
 const json = (response: any, status: number, payload: unknown) => {
   response.setHeader('Cache-Control', 'no-store');
   return response.status(status).json(payload);
@@ -157,11 +162,29 @@ export default async function handler(request: any, response: any) {
       });
 
       if (expenses.length > 0) {
-        await supabaseRequest(tableName, {
-          method: 'POST',
-          headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify(expenses.map(toRow)),
-        });
+        const rows = expenses.map(toRow);
+
+        try {
+          await supabaseRequest(tableName, {
+            method: 'POST',
+            headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify(rows),
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '';
+          const isMissingPaidColumn =
+            message.includes('PGRST204') && message.includes("'paid'");
+
+          if (!isMissingPaidColumn) {
+            throw error;
+          }
+
+          await supabaseRequest(tableName, {
+            method: 'POST',
+            headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify(rows.map(withoutPaid)),
+          });
+        }
       }
 
       return json(response, 200, { ok: true, expenses });

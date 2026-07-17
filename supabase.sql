@@ -24,6 +24,12 @@ add column if not exists card_name text not null default '';
 alter table public.obra_expenses
 add column if not exists paid boolean not null default false;
 
+update public.obra_expenses
+set paid = true
+where payment_method = 'PIX';
+
+select pg_notify('pgrst', 'reload schema');
+
 alter table public.obra_expenses enable row level security;
 
 drop policy if exists "service role manages obra expenses" on public.obra_expenses;
